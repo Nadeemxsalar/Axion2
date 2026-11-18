@@ -62,7 +62,8 @@ function init(){
   const g=++a.gen;a.last=performance.now();
   try{await a.ctx.resume();
    const m0=v.currentTime,c0=a.ctx.currentTime+.05,r=v.playbackRate;a.m0=m0;a.c0=c0;a.r=r;
-   for await(const {buffer,timestamp} of a.sink.buffers(Math.max(0,m0-.5))){
+   const D=window.axAD||0;
+   for await(const {buffer,timestamp:t0} of a.sink.buffers(Math.max(0,m0-D-.5))){const timestamp=t0+D;
     if(g!==a.gen)return;
     let off=Math.max(0,m0-timestamp),when=c0+(timestamp+off-m0)/r;
     const late=a.ctx.currentTime-when;if(late>0){off+=late*r;when=a.ctx.currentTime}
@@ -78,6 +79,7 @@ function init(){
  v.addEventListener('timeupdate',()=>{if(!on()||v.paused||!A.c0||performance.now()-A.last<2000)return;
   if(Math.abs(v.currentTime-(A.m0+(A.ctx.currentTime-A.c0)*A.r))>.2)go()});
  ['loadstart','emptied'].forEach(n=>v.addEventListener(n,drop));
+ addEventListener('axdelay',()=>on()&&go());
  v.addEventListener('loadedmetadata',probe);
 
  /* while Web Audio plays, <video> stays muted; this keeps mute button, slider and M/arrow keys working */
