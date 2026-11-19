@@ -20,11 +20,7 @@ const P={
  chev:'<path d="m9 18 6-6-6-6"/>',
  sort:'<path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/>',
  listVideo:'<path d="M12 12H3"/><path d="M16 6H3"/><path d="M12 18H3"/><path d="m16 12 5 3-5 3v-6z"/>'},
- PF={
-  folder:'<path opacity=".5" d="M3 6.5A2.5 2.5 0 0 1 5.5 4h3.7c.65 0 1.27.26 1.73.72l1.2 1.28h6.37A2.5 2.5 0 0 1 21 8.5V12H3z"/><path d="M3 10.5A2.5 2.5 0 0 1 5.5 8h13a2.5 2.5 0 0 1 2.5 2.5v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z"/>',
-  play:'<circle cx="12" cy="12" r="11" opacity=".2"/><path d="M9.6 7.7v8.6a.6.6 0 0 0 .9.5l6.9-4.3a.6.6 0 0 0 0-1l-6.9-4.3a.6.6 0 0 0-.9.5z"/>'},
- ic=n=>'<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+P[n]+'</svg>',
- fi=n=>'<svg class="i" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'+PF[n]+'</svg>';
+ ic=n=>'<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+P[n]+'</svg>';
 let L={name:'',items:[],subs:{}},view=[],all=[],more=300,hist={};
 const F={q:'',f:'all',s:'name',m:'flat',p:''},keyOf=new WeakMap();
 try{F.m=localStorage.axlm==='tree'?'tree':'flat'}catch{}
@@ -47,21 +43,22 @@ function init(){
  '@media(min-width:700px){#libm,#libf{flex:0 0 auto}#lib .sg button{padding:7px 14px}}',
  '#libc{display:flex;align-items:center;gap:2px;overflow-x:auto;scrollbar-width:none;margin-bottom:8px;font-size:13px}#libc::-webkit-scrollbar{display:none}#libc:empty{display:none}',
  '#libc button{flex:none;display:inline-flex;align-items:center;background:none;padding:5px 8px;border-radius:8px;color:var(--mut);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#libc button:last-child{color:var(--tx);font-weight:600}#libc button .i{width:16px;height:16px}#libc i{display:inline-flex;color:var(--mut)}#libc i .i{width:14px;height:14px}',
- '#libr{flex:1;min-height:0;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:2px 1px 12px;overscroll-behavior:contain}#libr>*{flex:none;min-width:0}',
- '#libr h6{display:block;margin:10px 4px 2px;font-size:12px;font-weight:600;line-height:1.3;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#libr h6::before{content:"";display:inline-block;vertical-align:-1px;margin-right:8px;width:3px;height:12px;border-radius:2px;background:var(--grad)}',
- '#libr .li{position:relative;display:flex;gap:12px;align-items:center;width:100%;min-width:0;box-sizing:border-box;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px;-webkit-tap-highlight-color:transparent;transition:border-color .15s,background-color .15s,box-shadow .15s}',
- '@media(hover:hover) and (pointer:fine){#libr .li:hover{border-color:color-mix(in srgb,var(--ac) 55%,var(--line));box-shadow:0 8px 22px #0003}}#libr .li:active{background:color-mix(in srgb,var(--ac) 10%,var(--panel))}#libr .li.cur{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,var(--panel))}',
- '#libr .th{position:relative;flex:none;width:112px;height:63px;border-radius:10px;overflow:hidden;color:#fff;display:grid;place-items:center;background:linear-gradient(145deg,#2b3358,#121626) center/cover}#libr .th .i{width:30px;height:30px;filter:drop-shadow(0 2px 6px #0006)}#libr .th.au{color:#1a1405;background:var(--grad) center/cover}#libr .th.au .i{width:28px;height:28px;filter:none}',
+ '#libr{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr);grid-auto-rows:max-content;gap:10px;align-content:start;padding:2px 1px 12px;overscroll-behavior:contain}',
+ '#libr>h6,#libr>.lm,#libr>.rf{grid-column:1/-1}',
+ '#libr h6{margin:8px 4px 0;font-size:12px;font-weight:600;color:var(--mut);display:flex;gap:6px;align-items:center;white-space:nowrap;overflow:hidden}#libr h6::before{content:"";width:3px;height:12px;border-radius:2px;background:var(--grad);flex:none}',
+ '#libr .li{display:flex;gap:12px;align-items:center;width:100%;min-width:0;box-sizing:border-box;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px;transition:transform .15s,border-color .15s,box-shadow .15s}',
+ '#libr .li:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--ac) 55%,var(--line));box-shadow:0 12px 28px #0005}#libr .li.cur{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,var(--panel))}',
+ '#libr .th{position:relative;flex:none;width:122px;height:69px;border-radius:10px;overflow:hidden;background:color-mix(in srgb,var(--ac) 10%,var(--inp)) center/cover;display:grid;place-items:center;color:var(--ac)}#libr .th .i{width:26px;height:26px}',
  '#libr .th .du{position:absolute;right:5px;bottom:6px;background:#000c;color:#fff;font:600 10.5px/1 system-ui;padding:3px 5px;border-radius:6px;font-style:normal}#libr .th .du:empty{display:none}',
  '#libr .th .pg{position:absolute;left:0;bottom:0;height:3px;background:var(--grad)}',
- '#libr .fo{padding:10px 12px;gap:14px}#libr .fo .th{width:48px;height:48px;border-radius:12px;color:var(--ac);background:color-mix(in srgb,var(--ac) 16%,var(--inp))}#libr .fo .th .i{width:34px;height:34px;filter:none}#libr .fo .chv{flex:none;display:inline-flex;color:var(--mut)}#libr .fo .chv .i{width:18px;height:18px}',
+ '#libr .fo .th{background:linear-gradient(135deg,color-mix(in srgb,var(--ac) 34%,transparent),color-mix(in srgb,var(--ac) 8%,transparent)),var(--inp)}#libr .fo .th .i{width:34px;height:34px}',
  '#libr .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}',
- '#libr .nm{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:500;line-height:1.3}',
+ '#libr .nm{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-weight:500;line-height:1.3}',
  '#libr .tx small{color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
  '#libr .lm{text-align:center;color:var(--mut);padding:28px 10px}#libr .lm .big{display:grid;place-items:center;width:72px;height:72px;margin:0 auto 12px;border-radius:50%;color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent)}#libr .lm .big .i{width:34px;height:34px}',
- '#libr .rf{align-self:center;justify-self:center;min-width:200px;padding:11px 18px;border-radius:14px}',
+ '#libr .rf{justify-self:center;min-width:200px;padding:11px 18px;border-radius:14px}',
  '#lib .ac{display:flex;gap:10px;padding-top:10px}#lib .ac .ib{width:46px;height:46px}#libp{flex:1;min-width:0;height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;font-size:15px;font-weight:600}#libp .i{width:16px;height:16px}',
- '@media(min-width:700px){#libr{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));grid-auto-rows:max-content;align-items:start;align-content:start;gap:14px}#libr>h6,#libr>.lm,#libr>.rf{grid-column:1/-1}#libr .li:not(.fo){flex-direction:column;align-items:stretch;gap:10px;padding:10px}#libr .li:not(.fo) .th{width:100%;height:auto;aspect-ratio:16/9}#lib .ac{justify-content:center}#libp{flex:0 1 280px}}',
+ '@media(min-width:700px){#libr{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}#libr .li{flex-direction:column;align-items:stretch;gap:10px;padding:10px}#libr .th{width:100%;height:auto;aspect-ratio:16/9}#lib .ac{justify-content:center}#libp{flex:0 1 280px}}',
  '#lib.emp .sr,#lib.emp .ct,#lib.emp #libc,#lib.emp .ac{display:none}',
  '#pl{display:none!important}#libb svg{width:20px;height:20px}#obf{display:inline-flex;align-items:center;gap:8px}#obf .i{width:18px;height:18px}'].join('')+'</style>');
 
@@ -167,7 +164,7 @@ function init(){
  /* ---- render ---- */
  const row=(x,i)=>{
   const hs=hist[hk(x.f)],pg=hs&&hs.dur?Math.min(100,Math.round(100*hs.pos/hs.dur)):0;
-  return'<button class="li'+(pl[pi]===x.f?' cur':'')+'" data-i="'+i+'"><span class="th'+(x.a?' au':'')+'" data-i="'+i+'"><span class="ic">'+(x.a?ic('music'):fi('play'))+'</span><em class="du"></em>'+(pg>1?'<i class="pg" style="width:'+pg+'%"></i>':'')+'</span>'+
+  return'<button class="li'+(pl[pi]===x.f?' cur':'')+'" data-i="'+i+'"><span class="th" data-i="'+i+'"><span class="ic">'+ic(x.a?'music':'film')+'</span><em class="du"></em>'+(pg>1?'<i class="pg" style="width:'+pg+'%"></i>':'')+'</span>'+
    '<span class="tx"><span class="nm">'+esc(x.f.name)+'</span><small>'+MB(x.f.size)+(F.m==='flat'||F.q?' · '+esc(tail(x.dir||L.name)):'')+'</small></span></button>'};
  const total=a=>a.reduce((s,x)=>s+x.f.size,0);
 
@@ -180,8 +177,8 @@ function init(){
   if(!L.items.length){
    const rc=((await tx('readonly',s=>s.getAll()))||[]).sort((a,b)=>b.ts-a.ts).slice(0,6);
    $('#libt').textContent='Library';$('#libi').textContent='';
-   body.innerHTML='<div class="lm"><div class="big">'+fi('folder')+'</div><p>Choose a folder to browse every video and audio file inside it, including subfolders.</p></div><button class="go rf" id="libch">Choose folder</button>'+
-    (rc.length?'<h6>Recent folders</h6>'+rc.map(d=>'<button class="li fo" data-r="'+esc(d.k)+'"><span class="th"><span class="ic">'+fi('folder')+'</span></span><span class="tx"><span class="nm">'+esc(d.k)+'</span></span><span class="chv">'+ic('chev')+'</span></button>').join(''):'');
+   body.innerHTML='<div class="lm"><div class="big">'+ic('folderOpen')+'</div><p>Choose a folder to browse every video and audio file inside it, including subfolders.</p></div><button class="go rf" id="libch">Choose folder</button>'+
+    (rc.length?'<h6>Recent folders</h6>'+rc.map(d=>'<button class="li fo" data-r="'+esc(d.k)+'"><span class="th"><span class="ic">'+ic('folder')+'</span></span><span class="tx"><span class="nm">'+esc(d.k)+'</span></span></button>').join(''):'');
    return}
   const q=F.q.toLowerCase(),tree=F.m==='tree'&&!q,P=F.p,
    ok=x=>(F.f==='all'||(F.f==='a')===x.a)&&(!q||x.f.name.toLowerCase().includes(q)),
@@ -194,7 +191,7 @@ function init(){
    for(const x of all){
     const r=P?(x.dir===P?'':x.dir.slice(P.length+1)):x.dir;
     if(!r)view.push(x);else{const n=r.split('/')[0],d=D.get(n)||{n,p:(P?P+'/':'')+n,c:0};d.c++;D.set(n,d)}}
-   h+=[...D.values()].sort((a,b)=>nat(a.n,b.n)).map(d=>'<button class="li fo" data-d="'+esc(d.p)+'"><span class="th"><span class="ic">'+fi('folder')+'</span></span><span class="tx"><span class="nm">'+esc(d.n)+'</span><small>'+d.c+' file'+(d.c>1?'s':'')+'</small></span><span class="chv">'+ic('chev')+'</span></button>').join('')}
+   h+=[...D.values()].sort((a,b)=>nat(a.n,b.n)).map(d=>'<button class="li fo" data-d="'+esc(d.p)+'"><span class="th"><span class="ic">'+ic('folder')+'</span></span><span class="tx"><span class="nm">'+esc(d.n)+'</span><small>'+d.c+' file'+(d.c>1?'s':'')+'</small></span></button>').join('')}
   else view=all;
   let g;
   view.slice(0,more).forEach((x,i)=>{
