@@ -1,5 +1,5 @@
-const V='axion-v4',MB='https://cdn.jsdelivr.net/npm/mediabunny@1.61.3/dist/bundles/mediabunny.min.mjs',
- SHELL=['/','/index.html','/media.js','/features.js','/manifest.webmanifest','/icon-192.png','/icon-512.png'],
+const V='axion-v9',MB='https://cdn.jsdelivr.net/npm/mediabunny@1.61.3/dist/bundles/mediabunny.min.mjs',
+ SHELL=['/','/index.html','/media.js','/features.js','/library.js','/manifest.webmanifest','/icon-192.png','/icon-512.png'],
  CDN=/(^|\.)(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net)$/;
 addEventListener('install',e=>e.waitUntil(caches.open(V).then(c=>Promise.all([c.addAll(SHELL),c.add(MB).catch(()=>{})])).then(()=>skipWaiting())));
 addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>clients.claim())));
