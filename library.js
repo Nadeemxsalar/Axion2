@@ -96,7 +96,7 @@ function init(){
   if(L.items.length%40===0)say('Scanning… '+L.items.length+' files',1500)}
  async function walk(h,p){for await(const [n,e] of h.entries()){
   if(n[0]==='.')continue;
-  if(e.kind==='file'){try{add(await e.getFile(),p)}catch{}}else await walk(e,p+n+'/')}}
+  if(e.kind==='file'){try{const f=await e.getFile();add(f,p);(window.axH||(window.axH=new Map())).set(f.name+':'+f.size,e)}catch{}}else await walk(e,p+n+'/')}}
  async function walkE(en,p){
   if(en.isFile){const f=await new Promise(r=>en.file(r,()=>r()));f&&add(f,p)}
   else{const rd=en.createReader();let b;do{b=await new Promise(r=>rd.readEntries(r,()=>r([])));for(const c of b)await walkE(c,p+en.name+'/')}while(b.length)}}
@@ -219,7 +219,7 @@ function init(){
   o.hidden=false;
   loadHist().then(()=>render(1)).then(()=>{const g=body.querySelector('.li.cur');g&&g.scrollIntoView({block:'center'})})}
  function close(){o.hidden=true;Q.length=0}
- function play(i,list){if(!list.length)return;pl=list.map(x=>x.f);playIdx(i);close()}
+ function play(i,list){if(!list.length)return;pl=list.map(x=>x.f);playIdx(i);close();window.axSave&&window.axSave(pl[pi])}
 
  body.onclick=e=>{
   const b=e.target.closest('button');if(!b)return;
