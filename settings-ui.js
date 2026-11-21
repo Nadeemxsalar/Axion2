@@ -132,6 +132,8 @@ const CSS=`
 #set .sq input:focus{outline:0;border-color:var(--ac)}
 #set.searching .tabs{opacity:.35;pointer-events:none}#set.searching .gh{display:none}
 #set .none{padding:30px 10px;text-align:center;color:var(--mut)}#set .none[hidden]{display:none}
+.lite #set,.lite #qm{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--panel);box-shadow:0 8px 24px #0008}.lite #set::before{display:none}.lite #libr .li:hover{transform:none;box-shadow:none}
+@media(prefers-reduced-motion:reduce){#set:not([hidden]),#qm:not([hidden]),#set .pane:not([hidden]){animation:none}}
 @media(max-width:640px),(pointer:coarse) and (max-height:500px){
  #set,#qm{border-radius:22px 22px 18px 18px}
  #set::after{content:"";position:absolute;top:7px;left:50%;width:38px;height:4px;margin-left:-19px;border-radius:4px;background:color-mix(in srgb,var(--tx) 25%,transparent);z-index:2}
@@ -144,6 +146,7 @@ const CSS=`
 
 function init(){
  const set=document.getElementById('set');if(!set)return;
+ if((navigator.deviceMemory&&navigator.deviceMemory<=4)||(navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4))document.documentElement.classList.add('lite'); /* weak device: no blur, no heavy shadows */
  const $=q=>set.querySelector(q),st=document.createElement('style');st.id='setui';st.textContent=CSS;document.head.appendChild(st);
 
  /* --- header: search button + search field --- */

@@ -2,7 +2,8 @@
 (()=>{
 const VID=/\.(mp4|mkv|webm|mov|m4v|avi|ts|3gp|mpg|mpeg|wmv|flv|ogv)$/i,AUD=/\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|wma|mka)$/i,SUB=/\.(srt|vtt)$/i,
  MB=b=>b>=1e9?(b/1e9).toFixed(1)+' GB':Math.max(1,Math.round(b/1e6))+' MB',
- nat=(a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'}),
+ COL=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'}),nat=(a,b)=>COL.compare(a,b),
+ tick=()=>new Promise(r=>{const c=new MessageChannel();c.port1.onmessage=r;c.port2.postMessage(0)}),
  hk=f=>'f:'+f.name+':'+f.size,tail=p=>p.split('/').pop();
 const P={
  back:'<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
@@ -60,6 +61,7 @@ function init(){
  '#lib .ac{display:flex;gap:10px;padding-top:10px}#lib .ac .ib{width:46px;height:46px}#libp{flex:1;min-width:0;height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;font-size:15px;font-weight:600}#libp .i{width:16px;height:16px}',
  '@media(min-width:700px){#libr{grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}#libr .li{flex-direction:column;align-items:stretch;gap:10px;padding:10px}#libr .th{width:100%;height:auto;aspect-ratio:16/9}#lib .ac{justify-content:center}#libp{flex:0 1 280px}}',
  '#lib.emp .sr,#lib.emp .ct,#lib.emp #libc,#lib.emp .ac{display:none}',
+ '#libr .li{content-visibility:auto;contain-intrinsic-size:auto 86px}@media(min-width:700px){#libr .li{contain-intrinsic-size:auto 260px}}@keyframes libsp{to{transform:rotate(360deg)}}#libr .big.spin{animation:libsp 1.6s linear infinite}@media(prefers-reduced-motion:reduce){#libr .big.spin{animation:none}}'+
  '#pl{display:none!important}#libb svg{width:20px;height:20px}#obf{display:inline-flex;align-items:center;gap:8px}#obf .i{width:18px;height:18px}'].join('')+'</style>');
 
  const o=document.createElement('div');o.id='lib';o.hidden=true;
@@ -93,10 +95,15 @@ function init(){
   const a=AUD.test(f.name)||/^audio/.test(f.type),vi=VID.test(f.name)||/^video/.test(f.type);
   if(!a&&!vi)return;
   keyOf.set(f,key);L.items.push({f,a:a&&!vi,dir:path.replace(/^\/+|\/+$/g,'')});
-  if(L.items.length%40===0)say('Scanning… '+L.items.length+' files',1500)}
- async function walk(h,p){for await(const [n,e] of h.entries()){
-  if(n[0]==='.')continue;
-  if(e.kind==='file'){try{const f=await e.getFile();add(f,p);(window.axH||(window.axH=new Map())).set(f.name+':'+f.size,e)}catch{}}else await walk(e,p+n+'/')}}
+  if(L.scan&&L.items.length%100===0){const e=document.getElementById('libsc');if(e)e.textContent=L.items.length+' files found'}}
+ async function walk(h,p){
+  const files=[],dirs=[];
+  for await(const [n,e] of h.entries()){if(n[0]==='.')continue;(e.kind==='file'?files:dirs).push([n,e])}
+  for(let i=0;i<files.length;i+=64){ /* 64 files at a time instead of one by one */
+   await Promise.all(files.slice(i,i+64).map(async([n,e])=>{
+    try{const f=await e.getFile();add(f,p);(window.axH||(window.axH=new Map())).set(f.name+':'+f.size,e)}catch{}}));
+   await tick()}
+  for(const [n,e] of dirs)await walk(e,p+n+'/')}
  async function walkE(en,p){
   if(en.isFile){const f=await new Promise(r=>en.file(r,()=>r()));f&&add(f,p)}
   else{const rd=en.createReader();let b;do{b=await new Promise(r=>rd.readEntries(r,()=>r([])));for(const c of b)await walkE(c,p+en.name+'/')}while(b.length)}}
@@ -109,7 +116,7 @@ function init(){
     if(!r)own++;else s.add(r.split('/')[0])}
    if(own||s.size!==1)break;F.p=pre+[...s][0]}}
  function done(){collapse();say(L.items.length+' files found',2500);showLib()}
- async function fromHandle(h){reset(h.name);say('Scanning '+h.name+'…',2e4);await walk(h,h.name+'/');done()}
+ async function fromHandle(h){reset(h.name);L.scan=true;o.hidden=false;render(1);try{await walk(h,h.name+'/')}finally{L.scan=false}done()}
  async function pick(){
   if(window.showDirectoryPicker){
    try{const h=await showDirectoryPicker({id:'axion',mode:'read'});tx('readwrite',s=>s.put({k:h.name,h,ts:Date.now()}));await fromHandle(h)}
@@ -177,6 +184,7 @@ function init(){
   if(!L.items.length){
    const rc=((await tx('readonly',s=>s.getAll()))||[]).sort((a,b)=>b.ts-a.ts).slice(0,6);
    $('#libt').textContent='Library';$('#libi').textContent='';
+   if(L.scan){$('#libt').textContent=L.name;$('#libi').textContent='';body.innerHTML='<div class="lm"><div class="big spin">'+ic('folderOpen')+'</div><p>Reading folder…</p><p id="libsc">0 files found</p></div>';return}
    body.innerHTML='<div class="lm"><div class="big">'+ic('folderOpen')+'</div><p>Choose a folder to browse every video and audio file inside it, including subfolders.</p></div><button class="go rf" id="libch">Choose folder</button>'+
     (rc.length?'<h6>Recent folders</h6>'+rc.map(d=>'<button class="li fo" data-r="'+esc(d.k)+'"><span class="th"><span class="ic">'+ic('folder')+'</span></span><span class="tx"><span class="nm">'+esc(d.k)+'</span></span></button>').join(''):'');
    return}

@@ -15,6 +15,7 @@ function init(){
   '#rec .x{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#000b;color:#fff}</style>');
 
  /* file handles of files opened with the system picker or the library: lets "Continue watching" reopen them directly */
+ window.axDiag=window.axDiag||{last:''};
  const AH=window.axH=window.axH||new Map(),CAN=!!window.showOpenFilePicker,
   V1=['.mp4','.mkv','.webm','.mov','.m4v','.avi','.ts','.3gp','.mpg','.mpeg','.wmv','.flv','.ogv'],A1=['.mp3','.m4a','.aac','.flac','.wav','.ogg','.opus','.wma','.mka'];
  const FAIL={};
@@ -28,7 +29,7 @@ function init(){
    const hs=await showOpenFilePicker({multiple:true,types:[{description:'Video and audio',accept:{'video/*':V1,'audio/*':A1}}]}),fs=[];
    for(const h of hs){const f=await h.getFile();AH.set(f.name+':'+f.size,h);fs.push(f)}
    openFiles(fs);fs.forEach(f=>saveHandle(f))}
-  catch(err){if(!err||err.name!=='AbortError')$('#file').click()}}
+  catch(err){if(!err||err.name!=='AbortError'){window.axDiag.last='picker: '+(err&&err.name)+' '+((err&&err.message)||'').slice(0,80);$('#file').click()}}}
  if(CAN)['#ob','#of','#of2'].forEach(s=>{const b=$(s);b&&b.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();pickAndOpen()},true)});
  st.addEventListener('drop',e=>{ /* dropped files: keep their handles too (Chrome / Edge) */
   try{for(const it of e.dataTransfer.items)if(it.kind==='file'&&it.getAsFileSystemHandle)
@@ -111,7 +112,7 @@ function init(){
     step='file';const f=await o.h.getFile();
     pl=[f];playIdx(0);return
    }catch(err){
-    FAIL[o.k]=1;
+    FAIL[o.k]=1;window.axDiag.last='tap: '+step+' '+((err&&err.name)||'error');
     if(err&&err.name==='NotFoundError'){delete o.h;put(o).catch(()=>0);render()}
     say('Could not reopen "'+nm+'" ('+step+': '+((err&&err.name)||'error')+'). Tap the card again to pick it',8000);return}}
   if(o)delete FAIL[o.k];
@@ -149,6 +150,18 @@ function init(){
   a.ondblclick=()=>{a.value=0;a.oninput()};
   v.addEventListener('loadstart',()=>{a.value=0;window.axAD=0;show()})}
 
+ /* ---------- Diagnostics (Settings > General): shows why a file can or cannot be reopened ---------- */
+ const dg=document.createElement('div');dg.className='it';dg.innerHTML='<span>Diagnostics<small id="axdt" style="white-space:pre-line">Open Settings to refresh</small></span><button id="axdb">Copy</button>';
+ const gpane=document.querySelector('#set .pane[data-p="g"]');gpane&&gpane.append(dg);
+ async function diag(){
+  const a=(await all())||[],n=a.filter(o=>o.h).length;
+  const t=['Reopen local files: '+(CAN?'supported':'NOT supported by this browser'),'Folder picker: '+(window.showDirectoryPicker?'supported':'not supported'),
+   '"Open with" launch: '+(window.launchQueue?'supported':'not supported'),'Saved for one-tap: '+n+' of '+a.length+' recent files','Handles in memory: '+AH.size,
+   window.axDiag.last?'Last problem: '+window.axDiag.last:'No problems recorded'].join('\n');
+  const e=document.getElementById('axdt');if(e)e.textContent=t;return t}
+ const db=document.getElementById('axdb');
+ if(db)db.onclick=async()=>{const t=await diag();try{await navigator.clipboard.writeText(t);say('Diagnostics copied')}catch{say('Could not copy')}};
+ new MutationObserver(()=>{if(!el.set.hidden)diag()}).observe(el.set,{attributes:true,attributeFilter:['hidden']});
  document.head.insertAdjacentHTML('beforeend',`<style>#rec .pb{position:absolute;right:8px;top:56px;width:24px;height:24px;border-radius:50%;background:#000b center/12px no-repeat;box-shadow:0 2px 8px #0006;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2'/%3E%3C/svg%3E")}
 #rec .pb.ok{background-color:var(--ac);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23171000'%3E%3Cpath d='M8 5l12 7-12 7z'/%3E%3C/svg%3E")}</style>`);
 }

@@ -15,7 +15,7 @@ window.axLazy=(url,again)=>{
 function init(){
  /* ---- PWA: service worker, install button, "Open with" files ---- */
  if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
- if(window.launchQueue)launchQueue.setConsumer(async p=>{const f=[];for(const h of p.files||[])f.push(await h.getFile());f.length&&openFiles(f)});
+ if(window.launchQueue)launchQueue.setConsumer(async p=>{const f=[],H=window.axH||(window.axH=new Map());for(const h of p.files||[]){const x=await h.getFile();H.set(x.name+':'+x.size,h);f.push(x)}f.length&&(openFiles(f),f.forEach(x=>window.axSave&&window.axSave(x)))});
  let ip;addEventListener('beforeinstallprompt',e=>{e.preventDefault();ip=e;
   const b=document.createElement('button');b.textContent='Install app';b.className='go';b.style.cssText='margin:0 10px 0 auto';
   b.onclick=async()=>{ip.prompt();await ip.userChoice.catch(()=>{});b.remove()};
@@ -29,7 +29,21 @@ function init(){
   stop=()=>{if(!A)return;A.gen++;A.n.forEach(n=>{try{n.stop()}catch{}});A.n.clear()},
   drop=()=>{const a=A;if(!a)return;A=null;a.gen++;a.n.forEach(n=>{try{n.stop()}catch{}});
    a.g&&a.g.disconnect();a.ctx&&a.ctx.close().catch(()=>{});a.inp.dispose&&a.inp.dispose();
-   if(a.cur>0)v.muted=a.m;audUI()};
+   if(a.web)v.muted=a.m;audUI()};
+
+ /* AC3 / E-AC3 / DTS: browsers cannot decode these, so a small WebAssembly decoder (Mediabunny extension) is downloaded only when a file needs it */
+ const EXT={ac3:'https://cdn.jsdelivr.net/npm/@mediabunny/ac3@1.66.2/dist/bundles/mediabunny-ac3.min.mjs',dts:'https://cdn.jsdelivr.net/npm/@mediabunny/dts@1.66.2/dist/bundles/mediabunny-dts.min.mjs'},extP={};
+ const loadExt=k=>extP[k]||(extP[k]=(async()=>{
+  const code=(await (await fetch(EXT[k])).text()).replace(/from\s*(["'])mediabunny\1/g,'from"'+MB+'"'); /* share the same Mediabunny instance */
+  const u=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
+  try{const m=await import(u);(m.registerAc3Decoder||m.registerDtsDecoder)();return true}finally{URL.revokeObjectURL(u)}
+ })().catch(()=>{extP[k]=null;return false}));
+ async function withExt(t,ok){
+  const need=new Set();
+  t.forEach((x,i)=>{if(!ok[i]){if(x.codec==='ac3'||x.codec==='eac3')need.add('ac3');else if(x.codec==='dts')need.add('dts')}});
+  if(!need.size)return ok;
+  for(const k of need){say('Preparing '+(k==='ac3'?'AC3':'DTS')+' audio decoder…',30000);if(!await loadExt(k)){say('Could not load the '+k.toUpperCase()+' decoder (check your internet)',6000);return ok}}
+  return Promise.all(t.map(x=>x.canDecode().catch(()=>false)))}
 
  async function probe(){
   drop();
@@ -42,22 +56,28 @@ function init(){
   for(const s of cands){
    const inp=new M.Input({source:s,formats:M.ALL_FORMATS});
    try{const t=await inp.getAudioTracks();
-    if(url!==curUrl||t.length<2){inp.dispose&&inp.dispose();return}
-    const ok=await Promise.all(t.map(x=>x.canDecode().catch(()=>false)));
+    if(url!==curUrl||!t.length){inp.dispose&&inp.dispose();return}
+    let ok=await Promise.all(t.map(x=>x.canDecode().catch(()=>false)));
     if(url!==curUrl){inp.dispose&&inp.dispose();return}
-    A={inp,t,ok,AB:M.AudioBufferSink,cur:0,n:new Set(),gen:0,m:v.muted,url,last:0};audUI();return
+    if(t.length<2&&ok[0]){inp.dispose&&inp.dispose();return}
+    const ok0=ok[0];
+    if(ok.some(x=>!x)){window.axAudBusy=true;try{ok=await withExt(t,ok)}finally{window.axAudBusy=false}}
+    if(url!==curUrl||(t.length<2&&!ok[0])){inp.dispose&&inp.dispose();return}
+    A={inp,t,ok,AB:M.AudioBufferSink,cur:0,web:false,f0:!ok0&&ok[0],n:new Set(),gen:0,m:v.muted,url,last:0};audUI();
+    if(A.f0){pick(0);say('Playing '+(t[0].codec||'').toUpperCase()+' audio with the built-in decoder',3500)}
+    return
    }catch{inp.dispose&&inp.dispose()}}}
 
  function pick(i){
   if(!A)return;stop();
-  if(i===0){const m=A.m,was=A.cur>0;A.cur=0;if(was)v.muted=m;return}
+  if(i===0&&!A.f0){const m=A.m,was=A.web;A.cur=0;A.web=false;if(was)v.muted=m;return}
   if(!A.ok[i])return say('This browser cannot decode this audio (often AC3/DTS). Try another track',6000);
   if(!A.ctx){A.ctx=new AudioContext();A.g=A.ctx.createGain();A.g.connect(A.ctx.destination)}
-  if(A.cur<1)A.m=v.muted;
-  A.cur=i;A.lv=v.volume;A.sink=new A.AB(A.t[i]);v.muted=true;gain();go()}
+  if(!A.web)A.m=v.muted;
+  A.cur=i;A.web=true;A.lv=v.volume;A.sink=new A.AB(A.t[i]);v.muted=true;gain();go()}
 
  async function go(){
-  const a=A;if(!a||a.cur<1)return;stop();
+  const a=A;if(!a||!a.web)return;stop();
   if(v.paused||v.seeking)return;
   const g=++a.gen;a.last=performance.now();
   try{await a.ctx.resume();
@@ -73,7 +93,7 @@ function init(){
     while(g===a.gen&&when-a.ctx.currentTime>4)await new Promise(f=>setTimeout(f,250))}
   }catch{if(g===a.gen&&A===a){say('Could not decode this audio. Back to default track',5000);pick(0);audUI()}}}
 
- const on=()=>A&&A.cur>0;
+ const on=()=>A&&A.web;
  ['playing','seeked','ratechange'].forEach(n=>v.addEventListener(n,()=>on()&&go()));
  ['pause','waiting','seeking'].forEach(n=>v.addEventListener(n,()=>on()&&stop()));
  v.addEventListener('timeupdate',()=>{if(!on()||v.paused||!A.c0||performance.now()-A.last<2000)return;
@@ -92,8 +112,8 @@ function init(){
 
  /* plug into the existing audio menu (works with the chip, menu and "A" key) */
  const aS=window.audSrc,sA=window.setAud;
- window.audSrc=()=>A&&A.t.length>1?{k:'m',a:A.t.map((x,i)=>[(x.name||'')+(A.ok[i]?'':' ✕'),x.languageCode]),c:Math.max(0,A.cur)}:aS();
- window.setAud=i=>{if(!(A&&A.t.length>1))return sA(i);pick(i);say('Audio: '+audName(window.audSrc().a[i],i),3000);setTimeout(audUI,300)};
+ window.audSrc=()=>A&&(A.t.length>1||A.f0)?{k:'m',a:A.t.map((x,i)=>[(x.name||(x.codec?x.codec.toUpperCase()+(x.numberOfChannels?' '+(x.numberOfChannels>5?'5.1':x.numberOfChannels===2?'stereo':x.numberOfChannels+'ch'):''):''))+(A.ok[i]?'':' ✕'),x.languageCode]),c:Math.max(0,A.cur)}:aS();
+ window.setAud=i=>{if(!(A&&(A.t.length>1||A.f0)))return sA(i);pick(i);say('Audio: '+audName(window.audSrc().a[i],i),3000);setTimeout(audUI,300)};
 }
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 })();
@@ -140,7 +160,7 @@ async function mkv(F,live,prog){
 const ts=m=>{m=Math.max(0,Math.round(m));const z=(n,l)=>String(n).padStart(l,'0');return z(~~(m/36e5),2)+':'+z(~~(m%36e5/6e4),2)+':'+z(~~(m%6e4/1e3),2)+'.'+z(m%1e3,3)};
 function vtt(t,C,sc){const ass=/ASS|SSA/.test(t.c);let o='WEBVTT\n\n';
  for(const c of C.filter(c=>c.n===t.n).sort((a,b)=>a.s-b.s)){
-  let x=c.x;if(ass)x=x.split(',').slice(8).join(',').replace(/\{[^}]*\}/g,'').replace(/\\N/gi,'\n').replace(/\\h/g,' ');
+  let x=c.x;if(ass){x=x.split(',').slice(8).join(',');x=window.axSubs?window.axSubs.assText(x):x.replace(/\{[^}]*\}/g,'').replace(/\\N/gi,'\n').replace(/\\h/g,' ')}
   x=x.trim().replace(/\n{2,}/g,'\n');if(!x)continue;
   const s=c.s*sc/1e6,d=(c.d==null?2000:c.d)*sc/1e6;o+=ts(s)+' --> '+ts(s+d)+'\n'+x+'\n\n'}return o}
 /*MKV-END*/
