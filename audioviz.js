@@ -3,7 +3,9 @@
 const AUD=/\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|wma|mka)$/i,N=32,u8=b=>new Uint8Array(b),
  syn=(a,i)=>(a[i]&127)<<21|(a[i+1]&127)<<14|(a[i+2]&127)<<7|(a[i+3]&127),
  dec=(a,e)=>new TextDecoder(e===1?'utf-16':e===2?'utf-16be':e===3?'utf-8':'latin1').decode(a),
- S=(a,i,j)=>String.fromCharCode(...a.subarray(i,j));
+ S=(a,i,j)=>String.fromCharCode(...a.subarray(i,j)),
+ /* title / artist from the song tags is shown only when it is plain English or Hindi text; Chinese, Korean, Arabic, Cyrillic, garbled text etc. is skipped and the file name stays */
+ plain=s=>!!s&&/^[\u0020-\u007E\u0900-\u097F\u2010-\u2027\s]+$/.test(s)&&/[A-Za-z0-9\u0900-\u097F]/.test(s);
 
 /* ---- tags: MP3 (ID3v2), M4A/MP4, FLAC ---- */
 async function id3(F){
@@ -131,8 +133,8 @@ function init(){
   box.hidden=false;size();sync();
   if(F&&/^blob:/.test(curUrl)){
    const t=await tags(F);if(my!==tok)return;
-   if(t.title)box.querySelector('#avt').textContent=t.title;
-   if(t.artist)box.querySelector('#avs').textContent=t.artist;
+   if(plain(t.title))box.querySelector('#avt').textContent=t.title;
+   if(plain(t.artist))box.querySelector('#avs').textContent=t.artist;
    if(t.art&&t.art.size){artUrl=URL.createObjectURL(t.art);img.setAttribute('href',artUrl);img.setAttribute('visibility','visible');note.style.display='none'}}});
 }
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
