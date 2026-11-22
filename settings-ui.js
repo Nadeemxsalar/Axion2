@@ -8,7 +8,8 @@ const I=(p,c,w)=>'url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http
  CC=I('<rect width="18" height="14" x="3" y="5" rx="2"/><path d="M7 15h4"/><path d="M15 15h2"/><path d="M7 11h2"/><path d="M13 11h4"/>','#000'),
  OK=I('<path d="M20 6 9 17l-5-5"/>','#000',2.6),
  CHEV=I('<path d="m6 9 6 6 6-6"/>','#8a93ad',2.4),
- SRCH=I('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>','#8a93ad');
+ SRCH=I('<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>','#8a93ad'),
+ CHM=I('<path d="m6 9 6 6 6-6"/>','#000',2.6);
 const IC={
  gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
  monitor:'<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
@@ -134,6 +135,19 @@ const CSS=`
 #set .none{padding:30px 10px;text-align:center;color:var(--mut)}#set .none[hidden]{display:none}
 .lite #set,.lite #qm{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--panel);box-shadow:0 8px 24px #0008}.lite #set::before{display:none}.lite #libr .li:hover{transform:none;box-shadow:none}
 @media(prefers-reduced-motion:reduce){#set:not([hidden]),#qm:not([hidden]),#set .pane:not([hidden]){animation:none}}
+#set .it>.pick{display:inline-flex;align-items:center;justify-content:space-between;gap:8px;min-width:92px}
+#set .it>.pick[hidden]{display:none}
+#set .it>.pick::after{content:"";width:14px;height:14px;flex:none;background:currentColor;-webkit-mask:${CHM} center/contain no-repeat;mask:${CHM} center/contain no-repeat;transition:transform .15s}
+#set .it>.pick[aria-expanded=true]::after{transform:rotate(180deg)}
+#set>#setpop{position:absolute;z-index:8;min-width:150px;max-width:calc(100% - 20px);padding:8px;border-radius:16px;display:grid;grid-template-columns:repeat(var(--cols,1),minmax(0,1fr));gap:6px;background:color-mix(in srgb,var(--panel) 97%,transparent);border:1px solid color-mix(in srgb,var(--tx) 16%,transparent);box-shadow:0 18px 44px -10px #000c;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);animation:setPop .16s cubic-bezier(.2,.9,.3,1.1);transform-origin:top right}
+#set>#setpop[hidden]{display:none}
+#setpop button{min-height:34px;padding:7px 12px;border-radius:11px;border:1px solid transparent;background:color-mix(in srgb,var(--tx) 6%,transparent);color:var(--tx);font-size:13px;font-weight:600;white-space:nowrap;text-align:center;transition:background .12s,transform .1s}
+#setpop.list button{text-align:left}
+#setpop button:hover{background:color-mix(in srgb,var(--ac) 20%,transparent)}
+#setpop button:active{transform:scale(.96)}
+#setpop button.on{background:var(--grad);color:#171000;box-shadow:0 4px 12px -4px color-mix(in srgb,var(--ac) 70%,transparent)}
+.lite #set>#setpop{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--panel)}
+@media(prefers-reduced-motion:reduce){#set>#setpop{animation:none}}
 @media(max-width:640px),(pointer:coarse) and (max-height:500px){
  #set,#qm{border-radius:22px 22px 18px 18px}
  #set::after{content:"";position:absolute;top:7px;left:50%;width:38px;height:4px;margin-left:-19px;border-radius:4px;background:color-mix(in srgb,var(--tx) 25%,transparent);z-index:2}
@@ -165,7 +179,7 @@ function init(){
   none.hidden=n>0}
  inp.oninput=()=>filter(true);
  sb.onclick=()=>{sq.hidden=!sq.hidden;if(sq.hidden){inp.value='';filter(true)}else inp.focus()};
- $('.tabs').addEventListener('click',()=>{if(inp.value){inp.value='';filter(false)}},true);
+ $('.tabs').addEventListener('click',()=>{closePop();if(inp.value){inp.value='';filter(false)}},true);
 
  /* --- row icons --- */
  const URL_=k=>I(IC[k],'#000');
@@ -176,26 +190,58 @@ function init(){
    if(m){r.classList.add('ic');r.style.setProperty('--ri',URL_(m[1]))}})}
 
  /* --- selects with few short options become tappable chips (the real select stays, hidden, so the app keeps working) --- */
- const sync=sel=>sel._box&&[...sel._box.children].forEach(b=>b.classList.toggle('on',b.dataset.v===sel.value));
+ const sync=sel=>{if(!sel._box)return;[...sel._box.children].forEach(b=>b.classList.toggle('on',b.dataset.v===sel.value));
+  const o=sel.options[sel.selectedIndex];sel._pk.firstChild.textContent=o?o.text:''};
  function chips(){
   set.querySelectorAll('select').forEach(sel=>{
    const o=[...sel.options];
    if(sel._box&&sel._n===o.length){sync(sel);return}
-   if(sel._box){sel._box.remove();sel._box=null;sel.hidden=false}
+   if(sel._box){sel._box.remove();sel._pk.remove();sel._box=null;sel.hidden=false}
    const tot=o.reduce((a,x)=>a+x.text.length,0),row=sel.closest('.it');
    if(!row||o.length<2||o.length>8||tot>52)return;
    const box=document.createElement('div');box.className='chips';
    o.forEach(x=>{const b=document.createElement('button');b.type='button';b.dataset.v=x.value;b.textContent=x.text;box.append(b)});
    box.onclick=e=>{const b=e.target.closest('button');if(!b)return;e.preventDefault();sel.value=b.dataset.v;
     sel.dispatchEvent(new Event('input',{bubbles:true}));sel.dispatchEvent(new Event('change',{bubbles:true}));sync(sel)};
-   sel.hidden=true;sel._box=box;sel._n=o.length;row.append(box);sync(sel)})}
+   const pk=document.createElement('button');pk.type='button';pk.className='pick';pk.hidden=true;pk.setAttribute('aria-haspopup','listbox');pk.setAttribute('aria-expanded','false');pk.innerHTML='<span></span>';
+   pk.onclick=e=>{e.preventDefault();e.stopPropagation();openPop(sel,pk)};
+   sel.hidden=true;sel._box=box;sel._pk=pk;sel._n=o.length;row.append(pk,box);sync(sel)})}
+
+ /* --- a group that does not fit on one line becomes ONE button (current value); tapping it opens the list --- */
+ function fit(){
+  set.querySelectorAll('.pane:not([hidden]) select').forEach(sel=>{
+   const box=sel._box,pk=sel._pk;if(!box)return;
+   box.style.display='';                                       /* measure with the chips visible */
+   const f=box.firstElementChild,l=box.lastElementChild,wrap=l.offsetTop>f.offsetTop+4;
+   box.style.display=wrap?'none':'';if(pk.hidden!==!wrap)pk.hidden=!wrap})}
+ let pop=null,popSel=null,popBtn=null;
+ function closePop(){if(pop&&!pop.hidden){pop.hidden=true}if(popBtn)popBtn.setAttribute('aria-expanded','false');popSel=popBtn=null}
+ function openPop(sel,btn){
+  if(!pop){
+   pop=document.createElement('div');pop.id='setpop';pop.hidden=true;pop.setAttribute('role','listbox');set.append(pop);
+   pop.onclick=e=>{const b=e.target.closest('button');if(!b||!popSel)return;e.stopPropagation();const s=popSel;
+    s.value=b.dataset.v;s.dispatchEvent(new Event('input',{bubbles:true}));s.dispatchEvent(new Event('change',{bubbles:true}));sync(s);const b2=popBtn;closePop();b2&&b2.focus()}}
+  if(popSel===sel){closePop();return}
+  closePop();popSel=sel;popBtn=btn;btn.setAttribute('aria-expanded','true');
+  const n=sel.options.length;
+  pop.className=n>4?'':'list';pop.style.setProperty('--cols',n>6?4:n>4?3:n>3?2:1);
+  pop.innerHTML=[...sel.options].map(x=>'<button type="button" role="option" data-v="'+esc(x.value)+'"'+(x.value===sel.value?' class="on" aria-selected="true"':'')+'>'+esc(x.text)+'</button>').join('');
+  pop.hidden=false;
+  const sr=set.getBoundingClientRect(),br=btn.getBoundingClientRect(),pw=pop.offsetWidth,ph=pop.offsetHeight;
+  let left=br.right-sr.left-pw;left=Math.max(10,Math.min(left,sr.width-pw-10));
+  let top=br.bottom-sr.top+6;if(top+ph>sr.height-8)top=Math.max(8,br.top-sr.top-ph-6);
+  pop.style.left=left+'px';pop.style.top=top+'px'}
+ set.addEventListener('pointerdown',e=>{if(pop&&!pop.hidden&&!e.target.closest('#setpop,.pick'))closePop()},true);
+ addEventListener('keydown',e=>{if(e.key==='Escape'&&pop&&!pop.hidden){const b=popBtn;closePop();b&&b.focus();e.stopPropagation();e.preventDefault()}},true);
+ $('.body').addEventListener('scroll',closePop,{passive:true});
+ addEventListener('resize',()=>{closePop();if(!set.hidden)fit()});
 
  /* --- filled part of the sliders --- */
  const fill=r=>{const a=+r.min||0,b=r.max===''?100:+r.max;r.style.setProperty('--p',Math.max(0,Math.min(100,(+r.value-a)/((b-a)||1)*100))+'%')},
-  all=()=>{icons();chips();set.querySelectorAll('input[type=range]').forEach(fill)};
+  all=()=>{icons();chips();fit();set.querySelectorAll('input[type=range]').forEach(fill)};
  set.addEventListener('input',e=>{if(e.target.matches&&e.target.matches('input[type=range]'))fill(e.target)},true);
  set.addEventListener('click',()=>setTimeout(all,0),true);
- new MutationObserver(()=>{if(set.hidden){if(inp.value){inp.value='';filter(false)}sq.hidden=true}all()}).observe(set,{attributes:true,attributeFilter:['hidden']});
+ new MutationObserver(()=>{if(set.hidden){if(inp.value){inp.value='';filter(false)}sq.hidden=true;closePop()}all()}).observe(set,{attributes:true,attributeFilter:['hidden']});
  all();setTimeout(all,600);
 }
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
