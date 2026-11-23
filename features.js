@@ -1,6 +1,6 @@
 /* Axion features.js: touch gestures, wake lock, watch history (IndexedDB), audio delay */
 (()=>{
-const SKIP='#ctl,#ctap,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb',cl=(x,a,b)=>Math.min(b,Math.max(a,x));
+const SKIP='#ctl,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb',cl=(x,a,b)=>Math.min(b,Math.max(a,x));
 
 function init(){
  document.head.insertAdjacentHTML('beforeend','<style>#stage{touch-action:none!important}'+
@@ -149,29 +149,6 @@ function init(){
   a.oninput=()=>{window.axAD=a.value/1000;show();dispatchEvent(new Event('axdelay'))};
   a.ondblclick=()=>{a.value=0;a.oninput()};
   v.addEventListener('loadstart',()=>{a.value=0;window.axAD=0;show()})}
-
- /* ---------- touch: the first tap only shows the controls (progress, time); it no longer pauses ---------- */
- const hold=()=>{clearTimeout(idle);idle=setTimeout(()=>{if(!v.paused&&el.set.hidden&&el.qm.hidden&&!drag)st.classList.add('idle')},Math.max(+S.hide,4000))};
- v.addEventListener('play',()=>{showCtl();hold()});                                   /* playback starts or resumes: show the controls, then let them fade out */
- let tapIdle=false;
- st.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')return;tapIdle=st.classList.contains('idle');
-  if(tapIdle){st.classList.add('fresh');setTimeout(()=>st.classList.remove('fresh'),500)}},true); /* buttons that appear under the finger must not receive this same tap */
- v.addEventListener('click',e=>{
-  if(e.pointerType!=='touch'||moved||!st.classList.contains('has'))return;   /* mouse click still pauses; swipes and pinch are left alone */
-  e.stopImmediatePropagation();
-  if(v.paused){tog();return}                                                  /* paused: a tap resumes */
-  if(tapIdle||st.classList.contains('idle')){showCtl();hold();return}       /* controls were hidden: just show them */
-  clearTimeout(idle);st.classList.add('idle')},true);                         /* controls were visible: hide them */
- /* slim progress line while the controls are hidden, and a big pause button on touch screens */
- const mini=document.createElement('div');mini.id='mini';mini.innerHTML='<i></i>';st.append(mini);
- const mi=mini.firstChild,cb=document.createElement('button');cb.id='ctap';cb.type='button';cb.setAttribute('aria-label','Pause');
- cb.innerHTML='<svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor"><rect x="6" y="4" width="4.5" height="16" rx="1.5"/><rect x="13.5" y="4" width="4.5" height="16" rx="1.5"/></svg>';
- cb.onclick=e=>{e.stopPropagation();tog();hold()};st.append(cb);
- const pgr=()=>{const d=v.duration;mi.style.transform='scaleX('+(d&&isFinite(d)?Math.min(1,v.currentTime/d):0)+')'};
- ['timeupdate','loadedmetadata','emptied','seeked'].forEach(n=>v.addEventListener(n,pgr));
- document.head.insertAdjacentHTML('beforeend','<style>#mini{position:absolute;left:0;right:0;bottom:0;height:3px;background:#ffffff2e;z-index:1;pointer-events:none;opacity:0;transition:opacity .2s}#mini i{display:block;height:100%;transform-origin:0 50%;transform:scaleX(0);background:var(--grad)}#stage.has.idle #mini{opacity:1}#stage.fresh #ctap,#stage.fresh #ctl{pointer-events:none!important}'+
-  '#ctap{position:absolute;top:50%;left:50%;width:64px;height:64px;margin:-32px;padding:0;border-radius:50%;background:#000a;color:#fff;border:2px solid color-mix(in srgb,var(--ac) 70%,transparent);display:none;place-items:center;z-index:2;cursor:pointer}'+
-  '@media(pointer:coarse){#stage.has:not(.idle):not(.paused):not(.web):not(.failed) #ctap{display:grid}}</style>');
 
  /* ---------- Diagnostics (Settings > General): shows why a file can or cannot be reopened ---------- */
  const dg=document.createElement('div');dg.className='it';dg.innerHTML='<span>Diagnostics<small id="axdt" style="white-space:pre-line">Open Settings to refresh</small></span><button id="axdb">Copy</button>';
