@@ -1,6 +1,6 @@
 /* Axion audioviz.js: animated vinyl + equalizer inside the player for audio files (cover art and title are read from the file) */
 (()=>{
-const AUD=/\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|wma|mka)$/i,N=32,u8=b=>new Uint8Array(b),
+const AUD=/\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|wma|mka)$/i,N=32,AL=/\.(mp3|m4a|aac|flac|wav|ogg|oga|opus|wma|mka)(\?|#|&|$)/i,VL=/\.(mp4|m4v|webm|mkv|mov|avi|ts|3gp|mpg|mpeg|wmv|flv|ogv|m3u8|mpd)(\?|#|&|$)/i,u8=b=>new Uint8Array(b),
  syn=(a,i)=>(a[i]&127)<<21|(a[i+1]&127)<<14|(a[i+2]&127)<<7|(a[i+3]&127),
  dec=(a,e)=>new TextDecoder(e===1?'utf-16':e===2?'utf-16be':e===3?'utf-8':'latin1').decode(a),
  S=(a,i,j)=>String.fromCharCode(...a.subarray(i,j)),
@@ -122,12 +122,15 @@ function init(){
  document.addEventListener('visibilitychange',sync);
  for(let i=0;i<N;i++)draw(.08,i);
 
- const nameOf=()=>{const F=pl[pi];let n=F?F.name:decodeURIComponent((curUrl||'').split('?')[0].split('/').pop()||'');return n.replace(/\.[^.]+$/,'').replace(/[._]+/g,' ').trim()};
+ const nameOf=()=>{const F=/^blob:/.test(curUrl)?pl[pi]:null;let n=F?F.name:decodeURIComponent((curUrl||'').split('?')[0].split('/').pop()||'');return n.replace(/\.[^.]+$/,'').replace(/[._]+/g,' ').trim()};
  const hide=()=>{tok++;box.hidden=true;box.classList.remove('pl');halt();if(artUrl){URL.revokeObjectURL(artUrl);artUrl=''}img.setAttribute('visibility','hidden');note.style.display=''};
  v.addEventListener('loadstart',hide);v.addEventListener('emptied',hide);
+ v.addEventListener('resize',()=>{if(!box.hidden&&v.videoWidth&&v.videoHeight)hide()}); /* video size arrived late: it is a movie, not music */
  v.addEventListener('loadedmetadata',async()=>{
-  const F=pl[pi],audio=!v.videoWidth&&!v.videoHeight&&!st.classList.contains('web')&&(!F||AUD.test(F.name)||/^audio/.test(F.type)||!v.videoWidth);
-  if(!audio)return;
+  /* a link whose address or type says video (mkv, mp4...) is never shown as music, even when this browser cannot decode its video (HEVC) */
+  const link=!/^blob:/.test(curUrl),F=link?null:pl[pi],kind=link?(AL.test(curUrl)||/^audio\//.test(lastType)?'a':VL.test(curUrl)||/^video\//.test(lastType)?'v':''):'',
+   audio=!v.videoWidth&&!v.videoHeight&&!st.classList.contains('web')&&(link?kind!=='v':(!F||AUD.test(F.name)||/^audio/.test(F.type)||!v.videoWidth));
+  if(!audio){if(link&&kind==='v'&&!v.videoWidth&&!v.videoHeight&&!st.classList.contains('web')){const q=++tok;[1200,10500].forEach(ms=>setTimeout(()=>{if(q===tok&&!v.videoWidth&&!v.videoHeight&&v.readyState>0)say('This browser cannot show the video of this movie (often HEVC/x265). Only the sound plays. Try an H.264 link, or Chrome/Edge on a device with HEVC support.',8000)},ms))}return}
   const my=++tok;
   box.querySelector('#avt').textContent=nameOf();box.querySelector('#avs').textContent='';
   box.hidden=false;size();sync();

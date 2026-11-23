@@ -24,6 +24,7 @@ function init(){
 
  /* ---- audio tracks: Mediabunny reads the tracks, Web Audio plays the chosen one ---- */
  let A=null,MBp;
+ const weak=()=>{const c=navigator.connection;return stalls>1||!!(c&&(c.saveData||/2g/.test(c.effectiveType||'')))};
  const mbl=()=>MBp||(MBp=import(MB)),
   gain=()=>{if(A&&A.g)A.g.gain.value=A.m?0:v.volume},
   stop=()=>{if(!A)return;A.gen++;A.n.forEach(n=>{try{n.stop()}catch{}});A.n.clear()},
@@ -49,7 +50,7 @@ function init(){
   drop();
   const url=curUrl,F=pl[pi];
   if(hls||dash||!url||st.classList.contains('web'))return;
-  if(/^https?:/.test(url)&&slowNet())return;
+  if(/^https?:/.test(url)&&weak())return;
   const M=await mbl().catch(()=>null);if(!M)return;
   const cands=/^blob:/.test(url)?(F?[new M.BlobSource(F)]:[]):/^https?:/.test(url)?
    [new M.UrlSource(url),new M.UrlSource(location.origin+'/api/proxy?u='+encodeURIComponent(url))]:[];
@@ -122,8 +123,8 @@ document.readyState==='loading'?document.addEventListener('DOMContentLoaded',ini
 (()=>{
 /*MKV-START*/
 const CL=0x1F43B675,DESC=new Set([0x18538067,0x1549A966,0x1654AE6B,0xAE,CL,0xA0]),TXT=/^S_TEXT\/(UTF8|ASCII|ASS|SSA|WEBVTT)$/;
-async function mkv(F,live,prog){
- const SZ=F.size,CH=8<<20;let ws=0,we=0,u=new Uint8Array(0);
+async function mkv(F,live,prog,part,wait,CH0){
+ const SZ=F.size,CH=CH0||8<<20;let ws=0,we=0,u=new Uint8Array(0);
  const ens=async(p,n)=>{n=Math.min(n,SZ-p);if(p>=ws&&p+n<=we)return;
   ws=p;u=new Uint8Array(await F.slice(p,Math.min(SZ,p+Math.max(n,CH))).arrayBuffer());we=ws+u.length},
  vi=(p,id)=>{const b=u[p-ws];let l=1,m=128;while(l<9&&!(b&m)){l++;m>>=1}if(l>8)return 0;
@@ -142,12 +143,13 @@ async function mkv(F,live,prog){
    if(id===0xAE)T.push(tr={});
    if(id===0xA0){gid++;pd=null}
    if(id===CL&&!go){go=1;for(const t of T)if(t.t===17&&TXT.test(t.c||''))M[t.n]=t;
-    if(!Object.keys(M).length)return{T:T.filter(t=>t.t===17),C,sc}}
+    if(!Object.keys(M).length)return{T:T.filter(t=>t.t===17),C,sc};
+    if(part)part({T:T.filter(t=>t.t===17),C,sc})}
    p=ds;continue}
   if(sz<=256&&(id===0x2AD7B1||id===0xE7||id===0x9B||(tr&&(id===0xD7||id===0x83||id===0x88||id===0x86||id===0x22B59C||id===0x536E)))){
    await ens(ds,sz);
    const v=id===0x86||id===0x22B59C||id===0x536E?str(ds,sz):rd(ds,sz);
-   if(id===0x2AD7B1)sc=v;else if(id===0xE7)ctc=v;
+   if(id===0x2AD7B1)sc=v;else if(id===0xE7){ctc=v;if(wait)await wait(ctc*sc/1e9)}
    else if(id===0x9B){if(cur&&cur.g===gid&&cur.d==null)cur.d=v;else pd=v}
    else if(id===0xD7)tr.n=v;else if(id===0x83)tr.t=v;else if(id===0x86)tr.c=v;
    else if(id===0x22B59C)tr.l=v;else if(id===0x536E)tr.nm=v;else tr.df=v;
@@ -163,6 +165,32 @@ function vtt(t,C,sc){const ass=/ASS|SSA/.test(t.c);let o='WEBVTT\n\n';
   let x=c.x;if(ass){x=x.split(',').slice(8).join(',');x=window.axSubs?window.axSubs.assText(x):x.replace(/\{[^}]*\}/g,'').replace(/\\N/gi,'\n').replace(/\\h/g,' ')}
   x=x.trim().replace(/\n{2,}/g,'\n');if(!x)continue;
   const s=c.s*sc/1e6,d=(c.d==null?2000:c.d)*sc/1e6;o+=ts(s)+' --> '+ts(s+d)+'\n'+x+'\n\n'}return o}
+function cueText(t,c){let x=c.x;if(/ASS|SSA/.test(t.c)){x=x.split(',').slice(8).join(',');x=window.axSubs?window.axSubs.assText(x):x.replace(/\{[^}]*\}/g,'').replace(/\\N/gi,'\n').replace(/\\h/g,' ')}
+ return x.trim().replace(/\n{2,}/g,'\n')}
+/* a File-like object for a link: slice(a,b).arrayBuffer() = HTTP Range request (direct if the site allows CORS, else through /api/proxy) */
+function remote(url){
+ const px=location.origin+'/api/proxy?u='+encodeURIComponent(url),act=new Set(),nap=ms=>new Promise(r=>setTimeout(r,ms));
+ let base='',size=0,dead=0;
+ async function get(b,a,z){
+  if(dead)throw new Error('stopped');
+  const c=new AbortController(),tm=setTimeout(()=>c.abort(),25000);act.add(c);
+  try{
+   const r=await fetch(b,{headers:{Range:'bytes='+a+'-'+z},signal:c.signal});
+   if(r.status!==206){r.body&&r.body.cancel().catch(()=>0);throw new Error('HTTP '+r.status)}
+   const m=/\/(\d+)\s*$/.exec(r.headers.get('content-range')||'');
+   return{buf:await r.arrayBuffer(),total:m?+m[1]:0}
+  }finally{clearTimeout(tm);act.delete(c)}}
+ async function read(a,z){
+  z=Math.min(z,size);if(z<=a)return new ArrayBuffer(0);
+  const out=new Uint8Array(z-a);let o=0,bad=0;
+  while(o<out.length){
+   try{const r=new Uint8Array((await get(base,a+o,z-1)).buf);if(!r.length)break;out.set(r.subarray(0,out.length-o),o);o+=r.length;bad=0}
+   catch(e){if(dead||++bad>3)throw e;await nap(700*bad)}}
+  return out.buffer.slice(0,o)}
+ return{
+  async open(){for(const b of[url,px]){try{const r=await get(b,0,3);if(r.total>8){base=b;size=r.total;return true}}catch{if(dead)return false}}return false},
+  abort(){dead=1;act.forEach(c=>c.abort())},
+  file:{get size(){return size},slice:(a,z)=>({arrayBuffer:()=>read(a,z)})}}}
 /*MKV-END*/
 
 function init(){
@@ -173,12 +201,14 @@ function init(){
  $('#aub').insertAdjacentElement('afterend',btn);
  document.head.insertAdjacentHTML('beforeend','<style>@container ctl (max-width:560px){#ctl #ccb{display:none}}</style>');
  $('#subb').closest('.it').insertAdjacentHTML('beforebegin','<div class="it"><span>Subtitle track<small id="scur">None in this file</small></span><button id="sbt">Choose</button></div>');
- const reset=()=>{tok++;if(SB.cur>=0)v.querySelectorAll('track').forEach(x=>x.remove());
+ const reset=()=>{tok++;clearInterval(SB.iv);SB.r&&SB.r.abort();if(SB.cur>=0)v.querySelectorAll('track').forEach(x=>x.remove());
   SB={t:[],cur:-1,C:null,sc:1e6};btn.hidden=true;$('#scur').textContent='None in this file'};
  function use(i){
   v.querySelectorAll('track').forEach(x=>x.remove());sdel=0;$('#sd').value=0;SB.cur=i;
   if(i<0){$('#scur').textContent='Off';return say('Subtitles off')}
   const t=SB.t[i],k=document.createElement('track');k.kind='subtitles';k.label=lab(t,i);
+  if(SB.live){SB.want=1;SB.k=k;SB.n=0;SB.ok=0;k.src=URL.createObjectURL(new Blob(['WEBVTT\n\n'],{type:'text/vtt'}));k.default=true;k.addEventListener('load',()=>{if(SB.k===k){SB.ok=1;feed()}}); /* cues are added only after the track has loaded: the browser clears cues added earlier */
+  v.append(k);k.track.mode='showing';$('#scur').textContent=k.label;return say('Subtitles: '+k.label+(SB.done?'':' (still loading…)'))}
   k.src=URL.createObjectURL(new Blob([vtt(t,SB.C,SB.sc)],{type:'text/vtt'}));k.default=true;v.append(k);k.track.mode='showing';
   $('#scur').textContent=k.label;say('Subtitles: '+k.label)}
  function menu(){el.set.hidden=true;
@@ -188,10 +218,42 @@ function init(){
  btn.onclick=$('#sbt').onclick=menu;
  el.qm.addEventListener('click',e=>{const b=e.target.closest('[data-s]');if(!b)return;e.stopPropagation();el.qm.hidden=true;
   b.dataset.s==='add'?$('#sub').click():b.dataset.s==='style'?window.axSubStyle&&axSubStyle():use(+b.dataset.s)},true);
+ /* links: tracks are listed after a few MB (CC appears); the cues are read in the background only after a track is chosen,
+    and never more than ~2.5 min ahead of the playhead, so the extra data stays close to what you actually watch */
+ const weak=()=>{const c=navigator.connection;return stalls>1||!!(c&&(c.saveData||/2g/.test(c.effectiveType||'')))},
+  NOSCAN=/\.(mp4|m4v|mov|m3u8|mpd|mp3|m4a|aac|flac|wav|ogg|oga|opus|ogv)(\?|#|&|$)/i,nap=ms=>new Promise(r=>setTimeout(r,ms));
+ async function wait(t,my){while(my===tok&&(!SB.want||t>v.currentTime+150))await nap(700)}
+ function feed(){
+  if(!SB.live||SB.cur<0||!SB.k||!SB.ok)return;
+  const t=SB.t[SB.cur],tr=SB.k.track,C=SB.C,end=SB.done?C.length:C.length-1;
+  for(;SB.n<end;SB.n++){const c=C[SB.n];if(c.n!==t.n)continue;
+   const x=cueText(t,c);if(!x)continue;
+   const s=c.s*SB.sc/1e9+sdel,d=(c.d==null?2000:c.d)*SB.sc/1e9;
+   try{tr.addCue(new VTTCue(s,s+Math.max(d,.2),x))}catch{}}}
+ function ready(R,live,r){
+  const t=R.T.filter(x=>TXT.test(x.c||''));
+  if(!t.length)return R.T.length?say('Subtitles in this file are image-based (PGS/VobSub) and cannot be shown',6000):0;
+  SB={t,cur:-1,C:R.C,sc:R.sc,live:!!live,r,want:0,n:0,k:null,done:0,iv:live?setInterval(feed,1000):0};
+  btn.hidden=false;$('#scur').textContent='Off · '+t.length+' tracks';
+  say('Subtitles found: '+t.map(lab).join(', ')+'. Tap CC to choose',6000)}
+ async function scanLink(my,L){
+  const url=curUrl;let on=true;try{on=JSON.parse(localStorage.axionSub).lk!==false}catch{}
+  if(!on||weak()||hls||dash||st.classList.contains('web')||NOSCAN.test(url))return L('link skipped (off, data saver, or not MKV/WebM)');
+  await nap(2500);if(my!==tok)return;
+  const R=remote(url);SB.r=R;
+  try{
+   if(!await R.open()||my!==tok)return L('link: range requests are not available');
+   const h=new Uint8Array(await R.file.slice(0,4).arrayBuffer());
+   if(h[0]!==0x1A||h[1]!==0x45||h[2]!==0xDF||h[3]!==0xA3)return L('link: not MKV/WebM');
+   const res=await mkv(R.file,()=>my===tok,null,p=>{if(my===tok)ready(p,true,R)},t=>wait(t,my),3<<20);
+   if(!res||my!==tok)return L('link: cancelled');
+   L('link subtitle tracks:',JSON.stringify(res.T),'| cues:',res.C.length);
+   if(SB.live){SB.done=1;feed();clearInterval(SB.iv)}else ready(res)
+  }catch(e){if(my===tok)L('link scan stopped:',e&&e.message)}}
  async function scan(){
   const my=++tok,F=pl[pi],L=(...a)=>console.log('[Axion subs]',...a);
   L('media.js v3 | file:',F&&F.name,'|',F&&F.type,'|',/^blob:/.test(curUrl)?'device file':'link');
-  if(!/^blob:/.test(curUrl)||!F)return L('skipped: only device files are scanned');
+  if(!/^blob:/.test(curUrl)||!F)return /^https?:/.test(curUrl)?scanLink(my,L):L('skipped: not a device file or link');
   const h=new Uint8Array(await F.slice(0,4).arrayBuffer());
   if(h[0]!==0x1A||h[1]!==0x45||h[2]!==0xDF||h[3]!==0xA3)return L('skipped: not MKV/WebM (embedded subtitles in MP4 are not supported)');
   await new Promise(r=>setTimeout(r,1500));if(my!==tok)return;
@@ -209,7 +271,7 @@ document.readyState==='loading'?document.addEventListener('DOMContentLoaded',ini
 
 /* ---- Subtitle style: own renderer + "Subtitles" tab in Settings ---- */
 (()=>{
-const D={on:true,f:'sans',sz:100,b:false,col:'#ffffff',pos:7,w:80,lift:true,bg:55,ol:'outline'},
+const D={on:true,lk:true,f:'sans',sz:100,b:false,col:'#ffffff',pos:7,w:80,lift:true,bg:55,ol:'outline'},
  F={sans:'Inter,"Segoe UI",system-ui,-apple-system,"Noto Sans","Noto Sans Devanagari",sans-serif',
   serif:'Georgia,"Times New Roman","Noto Serif","Noto Serif Devanagari",serif',
   mono:'Consolas,"Courier New",monospace',round:'"Trebuchet MS",Verdana,"Noto Sans",sans-serif',
@@ -236,7 +298,7 @@ function init(){
  const pane=document.createElement('div');pane.className='pane';pane.dataset.p='s';pane.hidden=true;
  pane.innerHTML=
   '<div class="it"><span>Track<small id="scur2">None in this file</small></span><span class="bt"><button id="sbt2">Choose</button><button id="sad">Add file</button></span></div>'+
-  T('on','Show subtitles','Key: C')+
+  T('on','Show subtitles','Key: C')+T('lk','Read subtitles inside links','Uses extra data while watching')+
   '<div class="it"><span>Delay<small id="sdv">0 s</small></span><span class="bt"><button id="sdm">−0.5 s</button><button id="sdp">+0.5 s</button></span></div>'+
   '<div class="gh">Text</div>'+
   S('f','Font',[['sans','Sans'],['serif','Serif'],['round','Rounded'],['mono','Mono'],['casual','Casual']])+
