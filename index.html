@@ -246,6 +246,7 @@ textarea{width:100%;min-height:70px;background:var(--inp);border:1px solid var(-
     <label class="it"><span>Playback speed</span><select id="sp"></select></label>
     <div class="it"><span>Audio track<small id="acur">Only default</small></span><button id="aud">Change</button></div>
     <label class="it"><span>Start quality<small>For links that offer several qualities</small></span><select data-k="qstart"><option value="0">Highest</option><option value="1080">Up to 1080p</option><option value="720">Up to 720p</option><option value="480">Up to 480p</option></select></label>
+    <label class="it"><span>Keep quality<small>Do not lower the picture quality on a slow network</small></span><input type="checkbox" class="tg" data-k="keepq"></label>
     <label class="it"><span>Resume<small>Continue where you stopped</small></span><input type="checkbox" class="tg" data-k="resume"></label>
     <label class="it"><span>Loop video</span><input type="checkbox" class="tg" data-k="loop"></label>
     <div class="gh">Audio and subtitles</div>
@@ -439,11 +440,12 @@ function load(url,t=0,auto=true,type=''){
  if(ac&&!/^blob:/.test(url))say('After volume boost, web links may play silent. Reload the page',5000);
  const go=()=>{goFn=null;if(t>5&&(!isFinite(v.duration)||t<v.duration-15))v.currentTime=t;if(auto)v.play().catch(e=>{if(e&&e.name==='NotAllowedError')say('Tap play to start')})};
  if(/\.m3u8(\?|#|$)/i.test(url)&&window.Hls&&Hls.isSupported()){
-  hls=new Hls({capLevelToPlayerSize:false,maxBufferLength:COARSE?30:60,maxMaxBufferLength:90,backBufferLength:30,enableWorker:true,startFragPrefetch:true,abrEwmaDefaultEstimate:(navigator.connection&&navigator.connection.downlink||25)*8e5});
+  hls=new Hls({capLevelToPlayerSize:false,maxBufferLength:COARSE?30:60,maxMaxBufferLength:120,maxBufferSize:COARSE?80e6:160e6,backBufferLength:30,enableWorker:true,startFragPrefetch:true,abrEwmaDefaultEstimate:(navigator.connection&&navigator.connection.downlink||25)*8e5});
   hls.loadSource(url);hls.attachMedia(v);
   hls.on(Hls.Events.MANIFEST_PARSED,(e,d)=>{
    {const c=+S.qstart;if(c){let k=-1;d.levels.forEach((l,i)=>{if(l.height&&l.height<=c)k=i});hls.autoLevelCapping=k}}
-   setQ([['Auto',-1],...d.levels.map((l,i)=>[l.height?(l.height>=2160?'4K · ':'')+l.height+'p':Math.round(l.bitrate/1e3)+'k',i]).reverse()],-1);go()});
+   const cap=hls.autoLevelCapping,top=cap>=0?cap:d.levels.length-1,lock=S.keepq&&d.levels.length>1; /* Keep quality: start at the best level and stay there */
+   setQ([['Auto',-1],...d.levels.map((l,i)=>[l.height?(l.height>=2160?'4K · ':'')+l.height+'p':Math.round(l.bitrate/1e3)+'k',i]).reverse()],lock?top:-1);if(lock)hls.currentLevel=top;go()});
   hls.on(Hls.Events.LEVEL_SWITCHED,(e,d)=>{if(q.value==-1){const n='Auto · '+(hls.levels[d.level].height||'?')+'p';$('#qcur').textContent=n;$('#qb').title='Quality: '+n}});
   hls.on(Hls.Events.AUDIO_TRACKS_UPDATED,audUI);hls.on(Hls.Events.AUDIO_TRACK_SWITCHED,audUI);
   hls.on(Hls.Events.ERROR,(e,d)=>{if(!d.fatal)return;const c=d.response&&d.response.code;
@@ -451,10 +453,12 @@ function load(url,t=0,auto=true,type=''){
    if(d.type===Hls.ErrorTypes.MEDIA_ERROR&&hr++<5){say('Recovering playback…');return hls.recoverMediaError()}
    fail(c==401||c==403?'Access denied':c==404?'Stream not found':'Stream error',c?'The server answered with HTTP '+c+'. The link may have expired.':'The stream could not be loaded ('+d.details+').','Try again, or paste a fresh link.')});
  }else if(/\.mpd(\?|#|$)/i.test(url)&&window.dashjs){
-  dash=dashjs.MediaPlayer().create();dash.initialize(v,url,auto);
+  dash=dashjs.MediaPlayer().create();dash.updateSettings({streaming:{abr:{initialBitrate:{video:60000},limitBitrateByPortal:false,autoSwitchBitrate:{video:!S.keepq}}}});dash.initialize(v,url,auto);
   dash.on('error',e=>fail('Stream error',(e&&e.error&&e.error.message)||'The stream could not be loaded.','Try again, or paste a fresh link.'));
   dash.on('streamInitialized',()=>{const b=dash.getBitrateInfoListFor('video');if(t>5)v.currentTime=t;
-   setQ([['Auto',-1],...b.map((x,i)=>[(x.height>=2160?'4K · ':'')+x.height+'p',i]).reverse()],-1);audUI()});
+   const c=+S.qstart;let k=b.length-1;if(c){k=-1;b.forEach((x,i)=>{if(x.height&&x.height<=c)k=i});if(k<0)k=0}
+   const lock=S.keepq&&b.length>1;if(lock)dash.setQualityFor('video',k);
+   setQ([['Auto',-1],...b.map((x,i)=>[(x.height>=2160?'4K · ':'')+x.height+'p',i]).reverse()],lock?k:-1);audUI()});
  }else{v.querySelectorAll('source').forEach(x=>x.remove());
   if(type&&v.canPlayType(type)){v.removeAttribute('src');const x=document.createElement('source');x.src=url;x.type=type;v.append(x);v.load()}else v.src=url;
   goFn=go;v.addEventListener('loadedmetadata',go,{once:true})}
@@ -547,7 +551,7 @@ const orient=()=>{const w=v.videoWidth,h=v.videoHeight;if(w&&h)st.classList.togg
 ['loadedmetadata','resize'].forEach(n=>v.addEventListener(n,orient));
 
 /* ---------- settings, theme ---------- */
-const D={theme:'light',ac:'#f5b83d',step:'10',hide:'2500',ttl:true,qstart:'0',fit:'contain',br:100,co:100,sa:100,loop:false,resume:true};
+const D={theme:'light',ac:'#f5b83d',step:'10',hide:'2500',ttl:true,qstart:'0',fit:'contain',br:100,co:100,sa:100,loop:false,resume:true,keepq:true};
 const S={...D,...(()=>{try{return JSON.parse(localStorage.prism)}catch{return{}}})()};
 const UN={boost:'%',zm:'%',sd:' s',br:'%',co:'%',sa:'%'};
 function mkOut(){document.querySelectorAll('#set input[type=range]').forEach(r=>{const w=document.createElement('span'),o=document.createElement('output');w.className='rg';r.replaceWith(w);w.append(o,r)})}

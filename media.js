@@ -56,6 +56,8 @@ function init(){
   for(const s of cands){
    const inp=new M.Input({source:s,formats:M.ALL_FORMATS});
    try{const t=await inp.getAudioTracks();
+    let vbad='';try{const vt=await inp.getPrimaryVideoTrack();if(vt&&!(await vt.canDecode()))vbad=(vt.codec||'video').toUpperCase()}catch{}
+    if(vbad)setTimeout(()=>{if(url===curUrl&&!v.videoWidth)say('No picture: this browser cannot decode '+vbad+' video (VLC has its own decoder). Try Chrome or Edge on a device with hardware '+vbad+' support, or open the file in VLC',12000)},1800);
     if(url!==curUrl||!t.length){inp.dispose&&inp.dispose();return}
     let ok=await Promise.all(t.map(x=>x.canDecode().catch(()=>false)));
     if(url!==curUrl){inp.dispose&&inp.dispose();return}
