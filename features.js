@@ -1,6 +1,9 @@
 /* Axion features.js: touch gestures, wake lock, watch history (IndexedDB), audio delay */
 (()=>{
 const SKIP='#ctl,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb',cl=(x,a,b)=>Math.min(b,Math.max(a,x));
+const DEF_TH='url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#191f3a"/><stop offset="1" stop-color="#0b0e1a"/></linearGradient><radialGradient id="gl" cx="50%" cy="46%" r="54%"><stop offset="0" stop-color="#f5b83d" stop-opacity=".35"/><stop offset=".55" stop-color="#6366f1" stop-opacity=".16"/><stop offset="1" stop-color="#0b0e1a" stop-opacity="0"/></radialGradient><linearGradient id="pl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd36b"/><stop offset="1" stop-color="#f08a24"/></linearGradient></defs><rect width="160" height="90" fill="url(#bg)"/><rect width="160" height="90" fill="url(#gl)"/><path d="M0 68 Q40 48 80 62 T160 54 L160 90 L0 90Z" fill="#ffffff" fill-opacity=".045"/><path d="M0 24 Q45 38 90 20 T160 30" fill="none" stroke="#f5b83d" stroke-opacity=".18" stroke-width="1.2"/><circle cx="80" cy="44" r="27" fill="none" stroke="#ffffff" stroke-opacity=".08" stroke-width="1"/><circle cx="80" cy="44" r="18" fill="#ffffff" fill-opacity=".09" stroke="#ffd36b" stroke-opacity=".48" stroke-width="1.2"/><path d="M75.5 36.8 89 44 75.5 51.2Z" fill="url(#pl)" stroke="url(#pl)" stroke-width="2.2" stroke-linejoin="round"/></svg>')+'")';
+const DEF_AU='url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90"><defs><linearGradient id="abg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b1438"/><stop offset="1" stop-color="#0a0d1c"/></linearGradient><radialGradient id="agl" cx="50%" cy="48%" r="55%"><stop offset="0" stop-color="#a855f7" stop-opacity=".42"/><stop offset=".55" stop-color="#38bdf8" stop-opacity=".18"/><stop offset="1" stop-color="#0a0d1c" stop-opacity="0"/></radialGradient><linearGradient id="ant" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#c084fc"/></linearGradient></defs><rect width="160" height="90" fill="url(#abg)"/><rect width="160" height="90" fill="url(#agl)"/><g fill="#38bdf8" fill-opacity=".22"><rect x="20" y="40" width="3" height="10" rx="1.5"/><rect x="27" y="32" width="3" height="26" rx="1.5"/><rect x="34" y="37" width="3" height="16" rx="1.5"/><rect x="41" y="28" width="3" height="34" rx="1.5"/><rect x="116" y="28" width="3" height="34" rx="1.5"/><rect x="123" y="37" width="3" height="16" rx="1.5"/><rect x="130" y="32" width="3" height="26" rx="1.5"/><rect x="137" y="40" width="3" height="10" rx="1.5"/></g><circle cx="80" cy="45" r="24" fill="none" stroke="#c084fc" stroke-opacity=".16" stroke-width="1"/><circle cx="80" cy="45" r="18" fill="#ffffff" fill-opacity=".08" stroke="url(#ant)" stroke-opacity=".6" stroke-width="1.2"/><path d="M77 52V37l11-2.5v14.5" fill="none" stroke="url(#ant)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="74.5" cy="52" r="3" fill="url(#ant)"/><circle cx="85.5" cy="49.5" r="3" fill="url(#ant)"/></svg>')+'")';
+const IS_AU=/\.(mp3|m4a|aac|flac|wav|ogg|opus|wma|mka)(\?|#|$)/i;
 
 function init(){
  document.head.insertAdjacentHTML('beforeend','<style>#stage{touch-action:none!important}'+
@@ -9,7 +12,8 @@ function init(){
   '#rec{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}#rec::-webkit-scrollbar{display:none}'+
   '#rec .rc{flex:none;width:150px;padding:0;border-radius:14px;overflow:hidden;position:relative;font-size:12px;text-align:left;background:var(--panel);color:var(--tx);border:1px solid var(--line);transition:transform .15s,border-color .15s,box-shadow .15s}'+
   '#rec .rc:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--ac) 55%,var(--line));box-shadow:0 12px 26px -10px #0007}'+
-  '#rec .th{display:block;height:84px;background:color-mix(in srgb,var(--ac) 12%,var(--inp)) center/cover}'+
+  '#rec .th{display:block;height:84px;background-color:color-mix(in srgb,var(--ac) 12%,var(--inp));background-image:'+DEF_TH+';background-position:center;background-size:cover;background-repeat:no-repeat}'+
+  '#rec .th.au{background-image:'+DEF_AU+'}'+
   '#rec .pg{position:absolute;left:0;right:0;top:80px;height:4px;background:#0006}#rec .pg i{display:block;height:100%;background:var(--grad)}'+
   '#rec .nm{display:block;padding:7px 10px 9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}'+
   '#rec .x{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#000b;color:#fff}</style>');
@@ -94,10 +98,10 @@ function init(){
   const a=((await all())||[]).sort((x,y)=>y.ts-x.ts);RC={};a.forEach(o=>RC[o.k]=o);
   a.slice(12).forEach(o=>del(o.k));
   const L=a.slice(0,12);rec.hidden=!L.length||el.empty.hidden;
-  $('#rec').innerHTML=L.map(o=>'<button class="rc" data-k="'+esc(o.k)+'"'+(o.u?' data-u="'+esc(o.u)+'"':'')+' data-p="'+Math.round(o.pos)+'">'+
-   '<span class="th"'+(o.th?' style="background-image:url('+o.th+')"':'')+'></span>'+
+  $('#rec').innerHTML=L.map(o=>{const au=IS_AU.test(o.n||o.u||'');return'<button class="rc" data-k="'+esc(o.k)+'"'+(o.u?' data-u="'+esc(o.u)+'"':'')+' data-p="'+Math.round(o.pos)+'">'+
+   '<span class="th'+(au?' au':'')+'"'+(o.th&&!au?' style="background-image:url('+o.th+')"':'')+'></span>'+
    '<span class="pb'+(o.u||o.h?' ok':'')+'"></span><span class="pg"><i style="width:'+Math.min(100,Math.round(100*o.pos/(o.dur||1)))+'%"></i></span>'+
-   '<span class="nm">'+esc(o.n)+'</span><span class="x" data-x="1"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span></button>').join('')}
+   '<span class="nm">'+esc(o.n)+'</span><span class="x" data-x="1"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span></button>'}).join('')}
 
  $('#rec').onclick=async e=>{
   const b=e.target.closest('.rc');if(!b)return;
@@ -122,6 +126,7 @@ function init(){
  render();
 
  async function thumb(k){
+  if(!v.videoWidth)return;
   let th='';
   try{const c=document.createElement('canvas');c.width=160;c.height=90;c.getContext('2d').drawImage(v,0,0,160,90);th=c.toDataURL('image/jpeg',.6)}catch{}
   const o=await get(k);if(o&&o.th===undefined)put({...o,th})}
