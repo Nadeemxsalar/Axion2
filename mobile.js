@@ -1,10 +1,10 @@
 /* Axion mobile.js: better touch experience (everything here is additive, desktop keeps working as before)
-   1. double-tap left / right to skip, keep tapping to skip more (ripple + running total)
-   2. animated gesture HUD: volume and brightness bars, big seek time while swiping, 2x speed badge
-   3. one tap shows / hides the controls at once (setting: tap can still play / pause), centre double-tap = play / pause
-   4. small vibration on gestures (setting)
-   5. screen lock: no accidental touches, hold the lock pill to unlock
-   6. thin progress line while the controls are hidden (setting) */
+1. double-tap left / right to skip, keep tapping to skip more (ripple + running total)
+2. animated gesture HUD: volume and brightness bars, big seek time while swiping, 2x speed badge
+3. one tap shows / hides the controls at once (setting: tap can still play / pause), centre double-tap = play / pause
+4. small vibration on gestures (setting)
+5. screen lock: no accidental touches, hold the lock pill to unlock
+6. thin progress line while the controls are hidden (setting) */
 (()=>{
 const SKIP='#ctl,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb,#qb,#gear,#qs,#pl,#axlockb,#axlockov,#axunl';
 const CSS=`
@@ -57,7 +57,7 @@ const CSS=`
  #axlockb{display:grid}
  #stage.has:not(.web):not(.failed):not(.idle):not(.axlocked) #axlockb{opacity:1;pointer-events:auto}
  #stage.has:not(.web):not(.failed) #ttl{padding-right:64px}
- #bar::before{content:"";position:absolute;left:0;right:0;top:-16px;bottom:-16px}
+ #bar::before{content:"";position:absolute;left:0;right:0;top:-16px;bottom:-4px}
  #stage.has.idle:not(.web):not(.failed):not(.axmini-off) #axmini,#stage.has.axlocked:not(.web):not(.failed):not(.axmini-off) #axmini{opacity:1}
 }
 /* not needed in full screen */
