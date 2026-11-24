@@ -48,6 +48,7 @@ const CSS=`
 #axunl .rg{position:absolute;left:0;top:0;bottom:0;width:100%;background:color-mix(in srgb,var(--ac,#f5b83d) 55%,transparent);transform:scaleX(0);transform-origin:left;pointer-events:none}
 #axunl.hold .rg{transform:scaleX(1);transition:transform .65s linear}
 #axunl span{position:relative}
+#stage.axmenu #axlockb{opacity:0!important;pointer-events:none!important} /* Settings / menu open: the lock button would sit on top of the close button */
 #stage.axhud #ctl,#stage.axhud #ttl,#stage.axhud #axlockb{opacity:0!important;pointer-events:none!important}
 #stage.axlocked #ctl,#stage.axlocked #ttl,#stage.axlocked #axlockb{opacity:0!important;pointer-events:none!important}
 @media(pointer:coarse){
@@ -196,6 +197,9 @@ function init(){
  v.addEventListener('emptied',()=>{fast.classList.remove('on');skb.classList.remove('on')});
 
  /* ---------- 5. screen lock ---------- */
+ const setEl=document.getElementById('set'),qmEl=document.getElementById('qm');
+ const menuOpen=()=>st.classList.toggle('axmenu',!!((setEl&&!setEl.hidden)||(qmEl&&!qmEl.hidden)));
+ [setEl,qmEl].forEach(e=>e&&new MutationObserver(menuOpen).observe(e,{attributes:true,attributeFilter:['hidden']}));menuOpen();
  let utimer=0,hold=0;
  const stop=e=>e.stopPropagation();
  lockB.addEventListener('pointerdown',stop);lockB.addEventListener('pointerup',stop);
