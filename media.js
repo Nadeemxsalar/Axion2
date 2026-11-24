@@ -233,7 +233,7 @@ function init(){
  let SB={t:[],cur:-1,C:null,sc:1e6},tok=0;
  const lab=(t,i)=>audName([t.nm||'',t.l],i)+(/ASS|SSA/.test(t.c)?' (ASS)':''),
   btn=document.createElement('button');
- btn.id='ccb';btn.className='chip';btn.textContent='CC';btn.title='Subtitles';btn.hidden=true;
+ btn.id='ccb';btn.setAttribute('aria-label','Subtitles');btn.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M10.5 10.5a2.5 2.5 0 1 0 0 3"/><path d="M17.5 10.5a2.5 2.5 0 1 0 0 3"/></svg>';btn.title='Subtitles';btn.hidden=true;
  $('#aub').insertAdjacentElement('afterend',btn);
  document.head.insertAdjacentHTML('beforeend','<style>@container ctl (max-width:560px){#ctl #ccb{display:none}}</style>');
  $('#subb').closest('.it').insertAdjacentHTML('beforebegin','<div class="it"><span>Subtitle track<small id="scur">None in this file</small></span><button id="sbt">Choose</button></div>');
