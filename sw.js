@@ -1,6 +1,6 @@
-const V='axion-v17',DC='axion-dec-1',MB='https://cdn.jsdelivr.net/npm/mediabunny@1.61.3/dist/bundles/mediabunny.min.mjs',
+const V='axion-v18',DC='axion-dec-1',MB='https://cdn.jsdelivr.net/npm/mediabunny@1.61.3/dist/bundles/mediabunny.min.mjs',
  DEC=['https://cdn.jsdelivr.net/npm/@mediabunny/ac3@1.66.2/dist/bundles/mediabunny-ac3.min.mjs','https://cdn.jsdelivr.net/npm/@mediabunny/dts@1.66.2/dist/bundles/mediabunny-dts.min.mjs'], /* AC3/DTS audio decoders (~3 MB): kept in their own cache so an app update does not download them again */
- SHELL=['/','/index.html','/media.js','/features.js','/library.js','/settings-ui.js','/subs.js','/audioviz.js','/manifest.webmanifest','/icon-192.png','/icon-512.png'],
+ SHELL=['/','/index.html','/media.js','/features.js','/library.js','/settings-ui.js','/subs.js','/audioviz.js','/mobile.js','/manifest.webmanifest','/icon-192.png','/icon-512.png'],
  CDN=/(^|\.)(cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net)$/;
 let warmed=0;
 /* each file is saved on its own: one missing file (for example an icon) no longer stops the whole update from installing */
