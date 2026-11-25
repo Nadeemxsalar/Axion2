@@ -166,18 +166,19 @@ async function mkv(F,live,prog,part,wait,CH0,init){
   }else if(id===0xA1&&sz>4){
    await ens(ds,Math.min(sz,16));const t=vi(ds,0),k=t&&M[t[0]];
    if(k){await ens(ds,sz);const o=ds+t[1];let r=u[o-ws]*256+u[o+1-ws];if(r>32767)r-=65536;
-    const x=new TextDecoder().decode(u.subarray(o+3-ws,ds+sz-ws)),key=seen?t[0]+':'+(ctc+r)+':'+x:'';
+    const x=new TextDecoder().decode(u.subarray(o+3-ws,ds+sz-ws)).replace(/\r\n?/g,'\n').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFEFF\uFFFD]/g,''),key=seen?t[0]+':'+(ctc+r)+':'+x:'';
     if(seen&&seen.has(key)){cur=null;pd=null}else{if(seen)seen.add(key);cur={n:t[0],s:ctc+r,d:pd,g:gid,x};pd=null;C.push(cur)}}}
   p=ds+sz}
  return{T:T.filter(t=>t.t===17),C,sc}}
-const ts=m=>{m=Math.max(0,Math.round(m));const z=(n,l)=>String(n).padStart(l,'0');return z(~~(m/36e5),2)+':'+z(~~(m%36e5/6e4),2)+':'+z(~~(m%6e4/1e3),2)+'.'+z(m%1e3,3)};
+const ts=m=>{m=Math.max(0,Math.round(m));const z=(n,l)=>String(n).padStart(l,'0');return z(~~(m/36e5),2)+':'+z(~~(m%36e5/6e4),2)+':'+z(~~(m%6e4/1e3),2)+'.'+z(m%1e3,3)},
+ cln=x=>x.replace(/\r\n?/g,'\n').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFEFF\uFFFD]/g,'').trim().replace(/\n{2,}/g,'\n');
 function vtt(t,C,sc){const ass=/ASS|SSA/.test(t.c);let o='WEBVTT\n\n';
  for(const c of C.filter(c=>c.n===t.n).sort((a,b)=>a.s-b.s)){
   let x=c.x;if(ass){x=x.split(',').slice(8).join(',');x=window.axSubs?window.axSubs.assText(x):x.replace(/\{[^}]*\}/g,'').replace(/\\N/gi,'\n').replace(/\\h/g,' ')}
-  x=x.trim().replace(/\n{2,}/g,'\n');if(!x)continue;
+  x=cln(x);if(!x)continue;
   const s=c.s*sc/1e6,d=(c.d==null?2000:c.d)*sc/1e6;o+=ts(s)+' --> '+ts(s+d)+'\n'+x+'\n\n'}return o}
 function cueText(t,c){let x=c.x;if(/ASS|SSA/.test(t.c)){x=x.split(',').slice(8).join(',');x=window.axSubs?window.axSubs.assText(x):x.replace(/\{[^}]*\}/g,'').replace(/\\N/gi,'\n').replace(/\\h/g,' ')}
- return x.trim().replace(/\n{2,}/g,'\n')}
+ return cln(x)}
 /* the Cues element lists [time, cluster position] pairs: lets us jump to the playhead instead of reading the file from its start */
 async function cueIndex(F,segStart,cp){
  if(!segStart)return null;

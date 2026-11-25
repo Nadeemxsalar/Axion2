@@ -9,15 +9,16 @@ const z=(n,l)=>String(n).padStart(l,'0'),
  ENT={'&nbsp;':' ','&lt;':'<','&gt;':'>','&amp;':'&','&quot;':'"','&#39;':"'",'&apos;':"'"};
 
 /* ---- text encoding: UTF-8, UTF-16, and a guess between Windows-1252 / 1251 (Cyrillic) / 1256 (Arabic) ---- */
+const clean=s=>String(s||'').replace(/\r\n?/g,'\n').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFEFF\uFFFD]/g,'');
 function decode(buf){
  const u=new Uint8Array(buf);
- if(u[0]===0xFF&&u[1]===0xFE)return new TextDecoder('utf-16le').decode(u.subarray(2));
- if(u[0]===0xFE&&u[1]===0xFF)return new TextDecoder('utf-16be').decode(u.subarray(2));
- try{return new TextDecoder('utf-8',{fatal:true}).decode(u).replace(/^\uFEFF/,'')}catch{}
+ if(u[0]===0xFF&&u[1]===0xFE)return clean(new TextDecoder('utf-16le').decode(u.subarray(2)));
+ if(u[0]===0xFE&&u[1]===0xFF)return clean(new TextDecoder('utf-16be').decode(u.subarray(2)));
+ try{return clean(new TextDecoder('utf-8',{fatal:true}).decode(u))}catch{}
  let hi=0,ar=0,cy=0;const d=new Set();
  for(let i=0;i<u.length;i++){const b=u[i];if(b>127){hi++;d.add(b);if(b===0xC7||b===0xE1||b===0xE4||b===0xE3||b===0xCA||b===0xCF)ar++;if(b>=0xE0)cy++}}
  const enc=hi&&ar/hi>.25?'windows-1256':hi&&d.size>=18&&cy/hi>.55?'windows-1251':'windows-1252';
- return new TextDecoder(enc).decode(u)}
+ return clean(new TextDecoder(enc).decode(u))}
 
 /* ---- markup helpers ---- */
 function col(x){x=(x||'').trim().toLowerCase();x=NAMED[x]||x.replace(/^#/,'');if(/^[0-9a-f]{3}$/.test(x))x=x.replace(/./g,'$&$&');if(!/^[0-9a-f]{6}$/.test(x))return'x';COL.add(x);return'c'+x}
@@ -42,7 +43,7 @@ function srt(t){const o=[];
 
 const ac=c=>{const x=(c||'').replace(/[&Hh]/g,'').replace(/^0x/i,'').padStart(6,'0').slice(-6).toLowerCase();return x.slice(4,6)+x.slice(2,4)+x.slice(0,2)}; /* &HBBGGRR -> rrggbb */
 function assText(x,st){ /* one ASS line: bold / italic / underline / colour overrides; drawings are skipped */
- st=st||{};let b=!!st.b,i=!!st.i,u=!!st.u,c=st.c,p=0,out='';
+ x=clean(x);st=st||{};let b=!!st.b,i=!!st.i,u=!!st.u,c=st.c,p=0,out='';
  for(const q of x.split(/(\{[^}]*\})/)){
   if(q[0]==='{'&&q[q.length-1]==='}'){
    for(const m of q.matchAll(/\\(b|i|u|p)(\d*)(?![a-z])|\\(?:1c|c)(&H[0-9a-fA-F]+&?)|\\r/g)){
@@ -144,8 +145,9 @@ const P={srt,ass,mdvd,sami,sbv,ttml,lrc};
 function colorCss(){let s=document.getElementById('axsubcol');if(!s){s=document.createElement('style');s.id='axsubcol';document.head.append(s)}
  s.textContent=[...COL].map(h=>'#sov .c'+h+'{color:#'+h+'}').join('')}
 function toVtt(text,name,o){
+ text=clean(text);
  const f=detect(text);if(!f)return{vtt:'',fmt:'',n:0};
- if(f==='vtt')return{vtt:text.replace(/\r/g,''),fmt:'vtt',n:(text.match(/-->/g)||[]).length};
+ if(f==='vtt')return{vtt:text,fmt:'vtt',n:(text.match(/-->/g)||[]).length};
  const c=P[f](text,o&&o.fps).filter(x=>x.t&&isFinite(x.s)&&isFinite(x.e));
  if(typeof document!=='undefined'&&COL.size)colorCss();
  return{vtt:'WEBVTT\n\n'+c.map(x=>ts(x.s)+' --> '+ts(Math.max(x.e,x.s+200))+'\n'+x.t+'\n\n').join(''),fmt:f,n:c.length}}
