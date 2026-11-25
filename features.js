@@ -6,7 +6,7 @@ const DEF_AU='url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://w
 const IS_AU=/\.(mp3|m4a|aac|flac|wav|ogg|opus|wma|mka)(\?|#|$)/i;
 
 function init(){
- document.head.insertAdjacentHTML('beforeend','<style>#stage{touch-action:none!important}'+
+ document.head.insertAdjacentHTML('beforeend','<style>'+
   '#recw{margin:14px 0 0}#recw[hidden]{display:none}@media(max-width:640px){#recw{margin:12px 12px 0}}'+
   '#recw h4{display:flex;align-items:center;gap:8px;margin:0 2px 8px;font-size:14px;font-weight:700;color:var(--tx)}#recw h4::before{content:"";width:3px;height:14px;border-radius:3px;background:var(--grad)}'+
   '#rec{display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scrollbar-width:none}#rec::-webkit-scrollbar{display:none}'+
@@ -39,29 +39,45 @@ function init(){
   try{for(const it of e.dataTransfer.items)if(it.kind==='file'&&it.getAsFileSystemHandle)
    it.getAsFileSystemHandle().then(h=>h&&h.kind==='file'&&h.getFile().then(f=>AH.set(f.name+':'+f.size,h))).catch(()=>0)}catch{}},true);
 
- /* ---------- 1. touch gestures: swipe up/down = brightness (left) / volume (right), swipe sideways = seek, long-press = 2x ---------- */
- let g=null,fast=1;
+ /* ---------- 1. touch gestures: left/right edge swipe up/down = brightness / volume, center = page scroll, sideways = seek, long-press = 2x ---------- */
+ let g=null,fast=1,edge=0;
  const end=e=>{
   if(!g||(e&&e.pointerId!==g.id))return;
   clearTimeout(g.lp);
   if(g.m==='h'&&e&&e.type==='pointerup'&&g.d)seekBy(g.d);
   if(g.m==='f'){v.playbackRate=fast;say('Normal speed',700)}
   g=null};
+ st.addEventListener('touchstart',e=>{
+  edge=0;
+  if(e.touches.length!==1||e.target.closest(SKIP)||!st.classList.contains('has')||st.classList.contains('web')||Z>1)return;
+  const r=st.getBoundingClientRect(),rel=(e.touches[0].clientX-r.left)/(r.width||1);
+  if(document.fullscreenElement||rel<.28||rel>.72)edge=1},{passive:true});
+ st.addEventListener('touchmove',e=>{
+  if(e.target.closest(SKIP)||!st.classList.contains('has')||st.classList.contains('web'))return;
+  if(edge||Z>1||e.touches.length>1||(g&&(g.m==='h'||g.m==='f')))if(e.cancelable)e.preventDefault()},{passive:false});
+ const endT=()=>{edge=0};
+ st.addEventListener('touchend',endT,{passive:true});st.addEventListener('touchcancel',endT,{passive:true});
  st.addEventListener('pointerdown',e=>{
   if(e.pointerType!=='touch'||e.target.closest(SKIP)||!st.classList.contains('has')||st.classList.contains('web')||Z>1||ptr.size>1)return;
-  const r=st.getBoundingClientRect();
-  g={id:e.pointerId,x:e.clientX,y:e.clientY,left:e.clientX<r.left+r.width/2,m:0,d:0,br:S.br,vl:v.volume};
+  const r=st.getBoundingClientRect(),rel=(e.clientX-r.left)/(r.width||1),fs=!!document.fullscreenElement;
+  const zone=fs?(rel<.5?'l':'r'):(rel<.28?'l':rel>.72?'r':'c');
+  g={id:e.pointerId,x:e.clientX,y:e.clientY,zone,m:0,d:0,br:S.br,vl:v.volume};
   g.lp=setTimeout(()=>{if(g&&!g.m&&!v.paused){g.m='f';fast=v.playbackRate;v.playbackRate=2;moved=true;say('2× speed',30000)}},450)});
  st.addEventListener('pointermove',e=>{
   if(!g||e.pointerId!==g.id)return;
   if(ptr.size>1||Z>1)return end();
   if(g.m==='f')return;
   const dx=e.clientX-g.x,dy=e.clientY-g.y;
-  if(!g.m){if(Math.hypot(dx,dy)<14)return;clearTimeout(g.lp);g.m=Math.abs(dx)>Math.abs(dy)?'h':'v'}
+  if(!g.m){
+   if(Math.hypot(dx,dy)<14)return;
+   clearTimeout(g.lp);
+   const h=Math.abs(dx)>Math.abs(dy);
+   if(!h&&g.zone==='c')return end(); /* center vertical swipe: let browser scroll the page */
+   g.m=h?'h':'v'}
   moved=true;
   if(g.m==='h'){g.d=Math.round(dx/(st.clientWidth||1)*120);say((g.d>0?'+':'')+g.d+'s',900)}
   else{const k=-dy/(st.clientHeight||1);
-   if(g.left){const b=Math.round(cl(g.br+k*100,50,150)/5)*5;if(b!==S.br){S.br=b;applyS()}say('Brightness '+S.br+'%',900)}
+   if(g.zone==='l'){const b=Math.round(cl(g.br+k*100,50,150)/5)*5;if(b!==S.br){S.br=b;applyS()}say('Brightness '+S.br+'%',900)}
    else{v.muted=false;v.volume=cl(g.vl+k,0,1);$('#vol').value=v.volume;say('Volume '+Math.round(v.volume*100)+'%',900)}}});
  addEventListener('pointerup',end);addEventListener('pointercancel',end);
  st.addEventListener('contextmenu',e=>{if(g)e.preventDefault()});

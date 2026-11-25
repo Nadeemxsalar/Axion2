@@ -108,6 +108,7 @@ video{width:100%;height:100%;display:block}
 #ctl .row{gap:2px;flex-wrap:nowrap;position:relative;z-index:1}
 #ctl button{display:inline-flex;align-items:center;justify-content:center;flex:none;width:38px;height:38px;min-height:0;padding:0;border-radius:50%;background:none;color:#fff}
 #ctl button:hover{background:#ffffff26}
+#ctl #prv{margin-right:2px}
 #ctl #pp{width:42px;height:42px;background:var(--grad);color:#1a1405;margin-right:4px}
 #ctl #pp:hover{filter:brightness(1.08)}
 #ctl .chip{width:auto;height:30px;padding:0 11px;border-radius:99px;font-size:12.5px;font-weight:600;border:1px solid #ffffff38;margin-right:4px;white-space:nowrap}
@@ -283,7 +284,9 @@ textarea{width:100%;min-height:70px;background:var(--inp);border:1px solid var(-
  <div id="ctl">
   <div id="bar"><div class="trk"><div id="buf"></div><div id="prog"></div></div><div id="knob"></div><div id="tip"><video id="pv" muted playsinline preload="metadata"></video><span id="pt"></span></div></div>
   <div class="row">
-   <button id="pp" title="Play / pause (space)"></button>
+   <button id="prv" title="Previous (b)" aria-label="Previous" hidden></button>
+   <button id="pp" title="Play / pause (space · hold for 2×)"></button>
+   <button id="nxt" title="Next (n)" aria-label="Next" hidden></button>
    <button id="bk" title="Back 10s (j)"></button>
    <button id="fw" title="Forward 10s (l)"></button>
    <button id="mt" title="Mute (m)"></button>
@@ -318,7 +321,7 @@ textarea{width:100%;min-height:70px;background:var(--inp);border:1px solid var(-
  <textarea id="list" hidden></textarea>
  <details class="tips">
   <summary>Tips and shortcuts</summary>
-  <div class="keys"><span><kbd>Space</kbd> play / pause</span><span><kbd>←</kbd> <kbd>→</kbd> 5 s</span><span><kbd>J</kbd> <kbd>L</kbd> skip step</span><span><kbd>↑</kbd> <kbd>↓</kbd> volume</span><span><kbd>M</kbd> mute</span><span><kbd>F</kbd> fullscreen</span><span><kbd>P</kbd> picture in picture</span><span><kbd>A</kbd> audio track</span><span><kbd>&lt;</kbd> <kbd>&gt;</kbd> speed</span><span><kbd>,</kbd> <kbd>.</kbd> frame by frame</span><span><kbd>N</kbd> <kbd>B</kbd> next / previous</span></div>
+  <div class="keys"><span><kbd>Space</kbd> play / pause (hold 2×)</span><span><kbd>←</kbd> <kbd>→</kbd> 5 s</span><span><kbd>J</kbd> <kbd>L</kbd> skip step</span><span><kbd>↑</kbd> <kbd>↓</kbd> volume</span><span><kbd>M</kbd> mute</span><span><kbd>F</kbd> fullscreen</span><span><kbd>P</kbd> picture in picture</span><span><kbd>A</kbd> audio track</span><span><kbd>&lt;</kbd> <kbd>&gt;</kbd> speed</span><span><kbd>,</kbd> <kbd>.</kbd> frame by frame</span><span><kbd>N</kbd> <kbd>B</kbd> next / previous</span></div>
   <p>MP4 and WebM play straight from their link, so IDM shows its “Download this video” bar. For .m3u8 streams, use Copy link and paste it in IDM. Files opened from your device cannot be downloaded.</p>
   <p>Links, HTML code, BB code and embed code from file hosts can be pasted too. Pages that are not video files open inside the player, and “Open in tab” helps if a site blocks framing.</p>
   <p>No sound on a file usually means an AC3/DTS audio track. Convert it with <code>ffmpeg -i in.mkv -c:v copy -c:a aac out.mp4</code></p>
@@ -331,8 +334,9 @@ const EXT=/\.(mp4|m4v|webm|mkv|mov|ogv|mp3|m4a|m3u8|mpd)(\?|#|$)/i,
  HOVER=matchMedia('(hover:hover) and (pointer:fine)').matches,COARSE=matchMedia('(pointer:coarse)').matches;
 const el={bar:$('#bar'),prog:$('#prog'),buf:$('#buf'),knob:$('#knob'),tm:$('#tm'),tip:$('#tip'),pt:$('#pt'),pv:$('#pv'),spin:$('#spin'),qm:$('#qm'),set:$('#set'),empty:$('#empty')};
 let hls=null,dash=null,srcs=[],curUrl='',lastType='',goFn=null,idle,lastSave=0,wd,hr=0,nr=0,stalls=0,
- sk=null,skT,drag=0,raf=0,lastPaint=0,lastSec=-1,barW=0,wt2,A=null,B=null,ac,gn,pl=[],pi=0,moved=false,pd=0,
- rot=0,flip=1,Z=1,PX=0,PY=0,sdel=0,sl,chk,pvU='',pvP=0,ph=null,pvT=0,pvB=0,pvRel,lastMove=0,sti=0;
+ sk=null,skT,lastSkip=0,drag=0,raf=0,lastPaint=0,lastSec=-1,barW=0,wt2,A=null,B=null,ac,gn,pl=[],pi=0,moved=false,pd=0,
+ rot=0,flip=1,Z=1,PX=0,PY=0,sdel=0,sl,chk,pvU='',pvP=0,ph=null,pvT=0,pvB=0,pvRel,pvLast=0,pvTm=0,lastMove=0,sti=0,
+ blobUrl='',subBlob='',lastPt='mouse',clkT=0,spT=0,spDown=0,spHold=0,spPrev=1,msT=0,msHold=0,msPrev=1,msX=0,msY=0;
 const ptr=new Map();
 const fmt=t=>{if(!isFinite(t))return'0:00';t=~~t;const h=~~(t/3600),m=~~(t%3600/60),s=t%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0')};
 const say=(m,ms=2500)=>{const e=$('#msg');e.textContent=m;e.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>e.style.opacity=0,ms)};
@@ -395,11 +399,15 @@ v.ontimeupdate=()=>{
  if(S.resume&&/^http/.test(curUrl)&&Date.now()-lastSave>3000){lastSave=Date.now();try{localStorage['p:'+curUrl.split('?')[0]]=v.currentTime}catch{}}};
 v.onprogress=bufPaint;v.addEventListener('seeked',bufPaint);
 
-/* ---------- seeking: bar moves instantly, real seek once on release ---------- */
+/* ---------- seeking: instant first skip, light debounce on rapid presses, smooth drag ---------- */
 function seekAt(t,hold){const d=v.duration;if(!d||!isFinite(d))return;sk=Math.max(0,Math.min(d,t));paint(sk,d,1);
- clearTimeout(skT);if(!hold)skT=setTimeout(seekGo,350)}
+ clearTimeout(skT);if(!hold)skT=setTimeout(seekGo,120)}
 function seekGo(){clearTimeout(skT);if(sk===null)return;const t=sk;sk=null;v.currentTime=t}
-const seekBy=x=>seekAt((sk===null?v.currentTime:sk)+x);
+const seekBy=x=>{
+ const d=v.duration;if(!d||!isFinite(d))return;
+ const now=performance.now(),t=Math.max(0,Math.min(d,(sk===null?v.currentTime:sk)+x));
+ if(sk===null&&now-lastSkip>220){lastSkip=now;paint(t,d,1);v.currentTime=t;return}
+ lastSkip=now;seekAt(t,0)};
 const bseek=e=>{const r=el.bar.getBoundingClientRect(),d=v.duration;if(d&&isFinite(d))seekAt(Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*d,1)};
 el.bar.onpointerdown=e=>{drag=1;st.classList.add('scrub');try{el.bar.setPointerCapture(e.pointerId)}catch{}bseek(e);tipAt(e)};
 el.bar.onpointermove=e=>{if(drag)bseek(e);tipAt(e)};
@@ -407,9 +415,9 @@ const endDrag=e=>{if(!drag)return;drag=0;st.classList.remove('scrub');seekGo();i
 el.bar.onpointerup=el.bar.onpointercancel=endDrag;
 el.bar.onpointerleave=()=>{if(!drag)hideTip()};
 
-/* ---------- hover preview (desktop only, never on slow net) ---------- */
-function hideTip(){el.tip.style.display='none';clearTimeout(pvRel);pvRel=setTimeout(pvFree,10000)}
-function pvFree(){if(ph){ph.destroy();ph=null}el.pv.removeAttribute('src');el.pv.load();pvU=''}
+/* ---------- hover preview (throttled for smooth 4K/local decoding) ---------- */
+function hideTip(){el.tip.style.display='none';clearTimeout(pvTm);clearTimeout(pvRel);pvRel=setTimeout(pvFree,10000)}
+function pvFree(){clearTimeout(pvTm);if(ph){ph.destroy();ph=null}el.pv.removeAttribute('src');el.pv.load();pvU=''}
 function pvLoad(){const p=el.pv,g=el.tip;
  if(!/^(https?|blob):/.test(curUrl)||(COARSE&&v.videoWidth>2560)||st.classList.contains('web')||/\.mpd(\?|#|$)/i.test(curUrl)){g.classList.add('nov');return}
  if(pvU===curUrl)return;pvU=curUrl;pvFree();pvU=curUrl;g.classList.remove('nov');pvB=0;pvP=0;
@@ -418,7 +426,11 @@ function pvLoad(){const p=el.pv,g=el.tip;
   ph.on(Hls.Events.MANIFEST_PARSED,(e,d)=>{let k=0;d.levels.forEach((l,i)=>{if(l.bitrate<d.levels[k].bitrate)k=i});ph.currentLevel=k});
   ph.on(Hls.Events.ERROR,(e,d)=>{if(d.fatal)g.classList.add('nov')})
  }else p.src=curUrl}
-function pvSeek(){const p=el.pv;if(pvB||p.readyState<1)return;pvB=1;try{p.currentTime=pvT}catch{pvB=0}}
+function pvSeek(){
+ const p=el.pv;if(pvB||p.readyState<1)return;
+ const now=performance.now(),wait=110-(now-pvLast);
+ if(wait>0){clearTimeout(pvTm);pvTm=setTimeout(pvSeek,wait);return}
+ pvLast=now;pvB=1;try{p.currentTime=pvT}catch{pvB=0}}
 el.pv.addEventListener('seeked',()=>{pvB=0;if(Math.abs(el.pv.currentTime-pvT)>1)pvSeek()});
 el.pv.addEventListener('loadedmetadata',pvSeek);
 el.pv.addEventListener('error',()=>{const s=el.pv.getAttribute('src');if(!s)return;if(/^https?:/.test(s)&&!pvP){pvP=1;pvB=0;el.pv.src='/api/proxy?u='+encodeURIComponent(s);return}el.tip.classList.add('nov')});
@@ -430,9 +442,11 @@ function tipAt(e){const r=el.bar.getBoundingClientRect(),f=Math.max(0,Math.min(1
  if(d&&isFinite(d)){pvLoad();pvT=f*d;if(!g.classList.contains('nov'))pvSeek()}}
 
 /* ---------- load / start ---------- */
+function freeBlob(keep){if(blobUrl&&blobUrl!==keep){pvFree();URL.revokeObjectURL(blobUrl);blobUrl=''}}
 function load(url,t=0,auto=true,type=''){
  if(window.axLazy&&axLazy(url,()=>load(url,t,auto,type)))return;
- unweb();clearErr();st.classList.add('has');lastType=type;hr=0;
+ unweb();clearErr();freeBlob(url);if(/^blob:/.test(url))blobUrl=url;
+ st.classList.add('has');lastType=type;hr=0;
  clearTimeout(wd);wd=setTimeout(()=>{if(!v.readyState&&!st.classList.contains('failed')&&!st.classList.contains('web'))fail('This is taking too long','The video did not start loading within a minute.','The link may be slow, expired or blocked. Try again or open it in a new tab.')},60000);
  if(hls){hls.destroy();hls=null}if(dash){dash.reset();dash=null}
  if(goFn){v.removeEventListener('loadedmetadata',goFn);goFn=null}
@@ -467,9 +481,12 @@ function start(){
  if(!srcs.length)return say('Paste a video link first');
  srcs.sort((a,b)=>b.h-a.h);const si=pickStart(),f=srcs[si];
  if(!/^https?:\/\//i.test(f.url))return say('Enter a full link that starts with http:// or https://',4000);
+ pl=[];$('#pl').hidden=true;$('#prv').hidden=$('#nxt').hidden=true;
  $('#ttl').textContent=f.title||'';
  if(!(srcs.length==1&&/\.m3u8/i.test(f.url)))setQ(srcs.map((s,i)=>[s.n,i]),si);
  if(f.title){document.title=f.title+' · Axion';say(f.title,4000)}
+ let mt=f.title;if(!mt)try{mt=decodeURIComponent(f.url.split('?')[0].split('/').pop()||'')}catch{}
+ setMeta(mt||'Axion',f.poster);
  if(f.page){web(f.url);return say((f.title||'Web page')+(f.info?' · '+f.info:'')+' · opened as a page. Blank? Use Open in tab',6000)}
  v.poster=f.poster||'';load(f.url,S.resume?rs(f.url):0,true,f.type);
  if(srcs.length==1&&!slowNet())v.addEventListener('canplay',()=>findSiblings(f),{once:true});
@@ -491,13 +508,26 @@ const spd=d=>{const i=Math.min(SP.length-1,Math.max(0,SP.indexOf(v.playbackRate)
 const fs=()=>{if(document.fullscreenElement)return document.exitFullscreen();
  if(st.requestFullscreen)st.requestFullscreen().then(()=>screen.orientation?.lock?.(st.classList.contains('vert')?'portrait':'landscape').catch(()=>{})).catch(()=>{});else v.webkitEnterFullscreen?.()};
 const pip=()=>document.pictureInPictureElement?document.exitPictureInPicture():v.requestPictureInPicture?.();
-$('#pp').onclick=tog;v.onclick=()=>moved?moved=false:tog();
-v.onplay=v.onpause=()=>{$('#pp').innerHTML=v.paused?PL:PA;st.classList.toggle('paused',v.paused)};
+const endHold=()=>{
+ clearTimeout(spT);spT=0;spDown=0;
+ if(spHold){v.playbackRate=spPrev;spHold=0;say('Normal speed',700)}
+ clearTimeout(msT);msT=0;
+ if(msHold){v.playbackRate=msPrev;msHold=0;say('Normal speed',700)}};
+$('#pp').onclick=tog;
+$('#prv').onclick=()=>pl.length>1&&playIdx(pi-1);
+$('#nxt').onclick=()=>pl.length>1&&playIdx(pi+1);
+v.onclick=e=>{
+ if(moved){moved=false;return}
+ if(lastPt==='touch'||COARSE){tog();return}
+ clearTimeout(clkT);if(e.detail>1)return;
+ clkT=setTimeout(()=>{clkT=0;tog()},210)};
+v.onplay=v.onpause=()=>{$('#pp').innerHTML=v.paused?PL:PA;st.classList.toggle('paused',v.paused);
+ if('mediaSession' in navigator)try{navigator.mediaSession.playbackState=v.paused?'paused':'playing'}catch{}};
 $('#bk').onclick=()=>seekBy(-S.step);$('#fw').onclick=()=>seekBy(+S.step);
 $('#vol').oninput=e=>{v.muted=false;v.volume=e.target.value};
 $('#sp').onchange=e=>v.playbackRate=+e.target.value;
 $('#fs').onclick=fs;$('#pip').onclick=pip;
-v.ondblclick=e=>{const r=v.getBoundingClientRect(),x=(e.clientX-r.left)/r.width;x<.3?(seekBy(-S.step),say('−'+S.step+'s')):x>.7?(seekBy(+S.step),say('+'+S.step+'s')):fs()};
+v.ondblclick=e=>{clearTimeout(clkT);clkT=0;const r=v.getBoundingClientRect(),x=(e.clientX-r.left)/r.width;x<.3?(seekBy(-S.step),say('−'+S.step+'s')):x>.7?(seekBy(+S.step),say('+'+S.step+'s')):fs()};
 document.addEventListener('fullscreenchange',()=>{const f=!!document.fullscreenElement;$('#fs').innerHTML=f?IFX:IFS;if(!f)screen.orientation?.unlock?.()});
 $('#dl').onclick=()=>{
  if(!/^https?:/.test(curUrl))return say('Needs a direct http(s) link');
@@ -509,11 +539,24 @@ $('#cp').onclick=async()=>{
 addEventListener('keydown',e=>{
  if(e.ctrlKey||e.metaKey||e.altKey)return;
  if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)&&e.target.type!=='range')return;
- const f={' ':tog,k:tog,ArrowRight:()=>seekBy(5),ArrowLeft:()=>seekBy(-5),l:()=>seekBy(+S.step),j:()=>seekBy(-S.step),a:cycAud,
+ if(e.key===' '){
+  e.preventDefault();
+  if(e.repeat)return;
+  if(v.paused||!st.classList.contains('has')||st.classList.contains('web')){tog();return}
+  spDown=1;clearTimeout(spT);
+  spT=setTimeout(()=>{spT=0;if(spDown&&!v.paused){spHold=1;spPrev=v.playbackRate;v.playbackRate=2;say('2× speed',30000)}},280);
+  return}
+ const f={k:tog,ArrowRight:()=>seekBy(5),ArrowLeft:()=>seekBy(-5),l:()=>seekBy(+S.step),j:()=>seekBy(-S.step),a:cycAud,
   Escape:()=>{el.set.hidden=true;el.qm.hidden=true},'+':()=>zoomTo(Z*1.25),'=':()=>zoomTo(Z*1.25),'-':()=>zoomTo(Z/1.25),'0':()=>zoomTo(1),
   ',':()=>{v.pause();v.currentTime-=1/30},'.':()=>{v.pause();v.currentTime+=1/30},n:()=>pl.length>1&&playIdx(pi+1),b:()=>pl.length>1&&playIdx(pi-1),
   ArrowUp:()=>vol(.05),ArrowDown:()=>vol(-.05),m:()=>v.muted=!v.muted,f:fs,p:pip,'>':()=>spd(1),'<':()=>spd(-1)}[e.key];
  if(f){e.preventDefault();f()}});
+addEventListener('keyup',e=>{
+ if(e.key!==' ')return;
+ clearTimeout(spT);spT=0;
+ if(spHold){v.playbackRate=spPrev;spHold=0;spDown=0;say('Normal speed',700);return}
+ if(spDown){spDown=0;tog()}});
+addEventListener('blur',endHold);
 
 /* ---------- errors, buffering, retry ---------- */
 v.onerror=()=>{const c=v.error&&v.error.code,b=/^blob:/.test(curUrl);
@@ -588,8 +631,9 @@ $('#sub').onchange=async e=>{
  const f=e.target.files[0];if(!f)return;let t;try{t=await f.text()}catch{return say('Could not read the subtitle file')}if(!t.trim())return say('The subtitle file is empty');
  if(!/^\uFEFF?WEBVTT/.test(t))t='WEBVTT\n\n'+t.replace(/\r/g,'').replace(/(\d\d:\d\d:\d\d),(\d{3})/g,'$1.$2');
  v.querySelectorAll('track').forEach(x=>x.remove());
+ if(subBlob){URL.revokeObjectURL(subBlob);subBlob=''}
  const k=document.createElement('track');k.kind='subtitles';k.label=f.name;
- k.src=URL.createObjectURL(new Blob([t],{type:'text/vtt'}));k.default=true;v.append(k);k.track.mode='showing';
+ subBlob=URL.createObjectURL(new Blob([t],{type:'text/vtt'}));k.src=subBlob;k.default=true;v.append(k);k.track.mode='showing';
  sdel=0;$('#sd').value=0;say('Subtitles added: '+f.name);e.target.value=''};
 $('#sd').oninput=e=>{const n=+e.target.value,d=n-sdel,k=v.textTracks[0];sdel=n;
  if(!k||!k.cues)return say('Add subtitles first');[...k.cues].forEach(c=>{c.startTime+=d;c.endTime+=d});say('Subtitle delay '+n+'s')};
@@ -601,6 +645,8 @@ const SPK='<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>';
 const I={on:ic(SPK+'<path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/>'),off:ic(SPK+'<line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>')};
 const PL=ic('<polygon points="6 4 20 12 6 20 6 4" fill="currentColor"/>'),PA=ic('<rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/>');
 const IFS=ic('<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>'),IFX=ic('<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>');
+$('#prv').innerHTML=ic('<polygon points="19 20 9 12 19 4 19 20" fill="currentColor"/><line x1="5" y1="19" x2="5" y2="5"/>');
+$('#nxt').innerHTML=ic('<polygon points="5 4 15 12 5 20 5 4" fill="currentColor"/><line x1="19" y1="5" x2="19" y2="19"/>');
 $('#pip').innerHTML=ic('<rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="12" width="8" height="6" rx="1" fill="currentColor"/>');
 $('#qb').innerHTML=ic('<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M7 9v6M7 12h3M10 9v6"/><path d="M13.5 9H15a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-1.5z"/>');
 $('#aub').innerHTML=ic('<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>');
@@ -611,7 +657,9 @@ $('#fs').innerHTML=IFS;
 $('#sx').innerHTML=ic('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>');
 $('#pb').innerHTML=ic('<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>');
 $('#bp').innerHTML=PL;
-v.onvolumechange=()=>{const m=v.muted||!v.volume;$('#mt').innerHTML=m?I.off:I.on;$('#vol').value=m?0:v.volume};
+try{const sv=JSON.parse(localStorage.axVol||'null');if(sv){if(typeof sv.v==='number')v.volume=Math.min(1,Math.max(0,sv.v));if(typeof sv.m==='boolean')v.muted=sv.m}}catch{}
+v.onvolumechange=()=>{const m=v.muted||!v.volume;$('#mt').innerHTML=m?I.off:I.on;$('#vol').value=m?0:v.volume;
+ try{localStorage.axVol=JSON.stringify({v:v.volume,m:v.muted})}catch{}};
 $('#mt').onclick=()=>v.muted=!v.muted;v.onvolumechange();v.onpause();
 
 /* ---------- audio boost, A-B loop, screenshot ---------- */
@@ -626,7 +674,7 @@ $('#boost').oninput=e=>{const x=+e.target.value/100;
 $('#ab').onclick=()=>{if(A===null){A=v.currentTime;say('A at '+fmt(A))}else if(B===null){B=v.currentTime;say('Looping A–B')}else{A=B=null;say('A–B loop off')}};
 $('#shot').onclick=()=>{if(!v.videoWidth)return say('Play something first');
  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
- try{c.toBlob(b=>{if(!b)return say('Blocked: this web link does not allow screenshots');const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='shot-'+fmt(v.currentTime).replace(/:/g,'-')+'.png';a.click();say('Screenshot saved')})}
+ try{c.toBlob(b=>{if(!b)return say('Blocked: this web link does not allow screenshots');const u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='shot-'+fmt(v.currentTime).replace(/:/g,'-')+'.png';a.click();setTimeout(()=>URL.revokeObjectURL(u),5000);say('Screenshot saved')})}
  catch{say('Blocked: this web link does not allow screenshots')}};
 $('#sleep').onchange=e=>{clearTimeout(sl);const m=+e.target.value;if(m){sl=setTimeout(()=>{v.pause();say('Sleep timer: paused',5000)},m*6e4);say('Sleep in '+m+' min')}};
 const cs=x=>v.canPlayType(x)?'yes':'no';
@@ -634,7 +682,7 @@ function statTick(){const o=v.getVideoPlaybackQuality?.()||{};
  $('#stats').textContent=`Size ${v.videoWidth}x${v.videoHeight}\nDropped frames ${o.droppedVideoFrames||0} of ${o.totalVideoFrames||0}\nSpeed ${v.playbackRate}x   Volume ${Math.round(v.volume*100)}%\nBrowser decodes:\nH.264 ${cs('video/mp4; codecs="avc1.640033"')}   HEVC ${cs('video/mp4; codecs="hvc1.1.6.L153.B0"')}\nVP9 ${cs('video/webm; codecs="vp09.0051.08"')}   AV1 ${cs('video/mp4; codecs="av01.0.12M.08"')}`}
 $('#sts').onclick=()=>{const h=$('#stats').hidden=!$('#stats').hidden;clearInterval(sti);if(!h){statTick();sti=setInterval(statTick,1000)}};
 
-/* ---------- rotate, flip, zoom, pinch ---------- */
+/* ---------- rotate, flip, zoom, pinch, mouse hold-to-2x ---------- */
 const xf=()=>{const id=Z===1&&!rot&&flip===1&&!PX&&!PY;
  v.style.transform=id?'':`translate(${PX}px,${PY}px) scale(${Z}) rotate(${rot}deg) scale(${rot%180?st.clientHeight/st.clientWidth:1}) scaleX(${flip})`;
  $('#zm').value=Z*100;if(!el.set.hidden)rv()};
@@ -643,19 +691,40 @@ const zoomTo=(z,quiet)=>{Z=Math.max(1,Math.min(5,z));if(Z==1)PX=PY=0;const mx=st
  PX=Math.max(-mx,Math.min(mx,PX));PY=Math.max(-my,Math.min(my,PY));st.style.touchAction=Z>1?'none':'pan-y';xf();if(!quiet)say('Zoom '+Math.round(Z*100)+'%')};
 $('#zm').oninput=e=>zoomTo(e.target.value/100,true);
 st.addEventListener('pointerdown',e=>{
+ lastPt=e.pointerType||'mouse';
  if(!e.target.closest('#qm,#set,#qb,#gear,#eg,#qs,#aud,#aub'))el.qm.hidden=el.set.hidden=true;
  showCtl();
- if(e.target.closest('#ctl,#set,#qm,#empty,#stats,#err,#wb,#eg'))return;ptr.set(e.pointerId,e);moved=false;pd=0});
-st.addEventListener('pointermove',e=>{const o=ptr.get(e.pointerId);if(!o)return;ptr.set(e.pointerId,e);
+ if(e.target.closest('#ctl,#set,#qm,#empty,#stats,#err,#wb,#eg'))return;
+ ptr.set(e.pointerId,e);moved=false;pd=0;
+ if(lastPt==='mouse'&&e.button===0&&st.classList.contains('has')&&!st.classList.contains('web')&&Z===1&&!v.paused){
+  msX=e.clientX;msY=e.clientY;clearTimeout(msT);
+  msT=setTimeout(()=>{msT=0;if(!v.paused&&Z===1&&ptr.size===1){msHold=1;msPrev=v.playbackRate;v.playbackRate=2;moved=true;say('2× speed',30000)}},400)}});
+st.addEventListener('pointermove',e=>{
+ const o=ptr.get(e.pointerId);if(!o)return;ptr.set(e.pointerId,e);
+ if(msT&&Math.hypot(e.clientX-msX,e.clientY-msY)>8){clearTimeout(msT);msT=0}
  if(ptr.size==2){const [a,b]=[...ptr.values()],d=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);if(pd)zoomTo(Z*d/pd,true);pd=d;moved=true}
  else if(Z>1){const dx=e.clientX-o.clientX,dy=e.clientY-o.clientY;PX+=dx;PY+=dy;zoomTo(Z,true);if(Math.abs(dx)+Math.abs(dy)>2)moved=true}});
-const pend=e=>{ptr.delete(e.pointerId);pd=0};addEventListener('pointerup',pend);addEventListener('pointercancel',pend);
+const pend=e=>{ptr.delete(e.pointerId);pd=0;clearTimeout(msT);msT=0;if(msHold){v.playbackRate=msPrev;msHold=0;say('Normal speed',700)}};
+addEventListener('pointerup',pend);addEventListener('pointercancel',pend);
 st.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.shiftKey)return;e.preventDefault();zoomTo(Z*(e.deltaY<0?1.1:.9),true)},{passive:false});
 
-/* ---------- playlist, media keys ---------- */
+/* ---------- playlist, media keys & lockscreen metadata ---------- */
+function setMeta(title,poster){
+ if(!('mediaSession' in navigator)||typeof MediaMetadata==='undefined')return;
+ const nm=(title||'Axion').replace(/\.[^.]+$/,'');
+ const art=poster?[{src:poster}]:[{src:'/icon-192.png',sizes:'192x192',type:'image/png'}];
+ try{navigator.mediaSession.metadata=new MediaMetadata({title:nm,artist:'Axion',artwork:art})}catch{}}
+const syncPos=()=>{
+ if(!('mediaSession' in navigator)||!navigator.mediaSession.setPositionState)return;
+ if(isFinite(v.duration)&&v.duration>0)try{navigator.mediaSession.setPositionState({duration:v.duration,playbackRate:v.playbackRate,position:Math.min(v.duration,Math.max(0,v.currentTime))})}catch{}};
+['loadedmetadata','play','pause','seeked','ratechange'].forEach(n=>v.addEventListener(n,syncPos));
 function openFiles(fl){pl=[...fl].filter(f=>/^(video|audio)/.test(f.type)||/\.(mkv|mp4|webm|mov|m4v|mp3|m4a)$/i.test(f.name));if(pl.length)playIdx(0);else say('No playable video or audio files found',3500)}
-function playIdx(i){pi=(i+pl.length)%pl.length;const f=pl[pi];$('#ttl').textContent=f.name;srcs=[{n:f.name,url:URL.createObjectURL(f)}];setQ([[f.name.slice(0,22),0]],0);v.poster='';load(srcs[0].url);
- const e=$('#pl');e.hidden=pl.length<2;e.innerHTML=pl.map((x,j)=>`<button data-i="${j}"${j==pi?' class="go"':''}>${esc(x.name)}</button>`).join('')}
+function playIdx(i){
+ pi=(i+pl.length)%pl.length;const f=pl[pi],u=URL.createObjectURL(f),multi=pl.length>1;
+ $('#ttl').textContent=f.name;document.title=f.name+' · Axion';setMeta(f.name);
+ srcs=[{n:f.name,url:u}];setQ([[f.name.slice(0,22),0]],0);v.poster='';load(u);
+ $('#prv').hidden=$('#nxt').hidden=!multi;
+ const e=$('#pl');e.hidden=!multi;e.innerHTML=pl.map((x,j)=>`<button data-i="${j}"${j==pi?' class="go"':''}>${esc(x.name)}</button>`).join('')}
 $('#pl').onclick=e=>{const b=e.target.closest('button');if(b)playIdx(+b.dataset.i)};
 v.onended=()=>pl.length>1&&playIdx(pi+1);
 if('mediaSession' in navigator){const m=navigator.mediaSession,h=(a,f)=>{try{m.setActionHandler(a,f)}catch{}};
@@ -738,14 +807,14 @@ async function findSiblings(s){
 /* ---------- web page mode ---------- */
 function web(u){
  if(hls){hls.destroy();hls=null}if(dash){dash.reset();dash=null}
- v.pause();v.querySelectorAll('source').forEach(x=>x.remove());v.removeAttribute('src');v.load();
+ freeBlob('');v.pause();v.querySelectorAll('source').forEach(x=>x.remove());v.removeAttribute('src');v.load();
  curUrl=u;clearTimeout(wd);clearErr();st.classList.add('has');st.classList.remove('vert');el.empty.hidden=true;el.spin.hidden=true;
  $('#fr').src=u;$('#fr').hidden=false;$('#wb').hidden=false;st.classList.add('web')}
 function unweb(){
  if($('#fr').hidden)return;
  $('#fr').src='about:blank';$('#fr').hidden=true;$('#wb').hidden=true;st.classList.remove('web')}
 $('#wt').onclick=()=>window.open(curUrl,'_blank','noopener');
-$('#wx').onclick=()=>{unweb();curUrl='';st.classList.remove('has','vert');el.empty.hidden=false};
+$('#wx').onclick=()=>{unweb();freeBlob('');curUrl='';st.classList.remove('has','vert');el.empty.hidden=false};
 
 if(/[?&](u|url|link|src|video)=/.test(location.search)){$('#url').value=location.href;start()}
 </script></body></html>
