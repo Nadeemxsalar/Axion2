@@ -102,9 +102,12 @@ video{width:100%;height:100%;display:block}
 #bar:hover #knob,#stage.scrub #knob{opacity:1}
 @media(pointer:coarse){#knob{opacity:1}}
 #tip{position:absolute;bottom:18px;left:0;transform:translateX(-50%);width:168px;padding:4px;overflow:hidden;background:#000e;border:1px solid #fff2;border-radius:10px;text-align:center;font-size:12px;display:none;pointer-events:none;z-index:3}
-#pv{width:100%;height:90px;object-fit:cover!important;transform:none!important;scale:none!important;filter:none!important;background:#111;border-radius:7px;display:block}
+#pvw{position:relative;width:100%;height:90px;background:#111;border-radius:7px;overflow:hidden}
+#pv,#pvi{position:absolute;inset:0;width:100%;height:100%;object-fit:cover!important;transform:none!important;scale:none!important;filter:none!important;display:block}
+#pvw.ld::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,#ffffff1f 50%,transparent 70%);background-size:200% 100%;animation:pvsh 1s linear infinite}
+@keyframes pvsh{from{background-position:200% 0}to{background-position:-200% 0}}
 #pt{display:block;margin-top:3px;font-variant-numeric:tabular-nums}
-#tip.nov{width:auto;padding:3px 10px}#tip.nov #pv{display:none}
+#tip.nov{width:auto;padding:3px 10px}#tip.nov #pvw{display:none}
 #ctl .row{gap:2px;flex-wrap:nowrap;position:relative;z-index:1}
 #ctl button{display:inline-flex;align-items:center;justify-content:center;flex:none;width:38px;height:38px;min-height:0;padding:0;border-radius:50%;background:none;color:#fff}
 #ctl button:hover{background:#ffffff26}
@@ -158,7 +161,7 @@ video{width:100%;height:100%;display:block}
 #qm button:hover{background:var(--btn)}#qm button.on{background:var(--btn);color:var(--act);font-weight:600}#qm button.on::after{content:"✓"}
 #set:not([hidden]),#qm:not([hidden]){animation:pop .15s ease-out}
 @keyframes pop{from{opacity:0;transform:translateY(6px)}}
-@media(prefers-reduced-motion:reduce){#set,#qm{animation:none!important}}
+@media(prefers-reduced-motion:reduce){#set,#qm{animation:none!important}#pvw.ld::after{animation:none!important}}
 
 /* link panel */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-top:12px;box-shadow:0 12px 30px -20px #000a}
@@ -282,7 +285,7 @@ textarea{width:100%;min-height:70px;background:var(--inp);border:1px solid var(-
   <input id="sub" type="file" accept=".vtt,.srt" hidden>
  </div>
  <div id="ctl">
-  <div id="bar"><div class="trk"><div id="buf"></div><div id="prog"></div></div><div id="knob"></div><div id="tip"><video id="pv" muted playsinline preload="metadata"></video><span id="pt"></span></div></div>
+  <div id="bar"><div class="trk"><div id="buf"></div><div id="prog"></div></div><div id="knob"></div><div id="tip"><div id="pvw"><video id="pv" muted playsinline preload="metadata"></video><img id="pvi" alt="" hidden></div><span id="pt"></span></div></div>
   <div class="row">
    <button id="prv" title="Previous (b)" aria-label="Previous" hidden></button>
    <button id="pp" title="Play / pause (space · hold for 2×)"></button>
@@ -332,12 +335,12 @@ textarea{width:100%;min-height:70px;background:var(--inp);border:1px solid var(-
 const $=s=>document.querySelector(s),v=$('#v'),q=$('#q'),st=$('#stage'),SP=[.25,.5,.75,1,1.25,1.5,2,3];
 const EXT=/\.(mp4|m4v|webm|mkv|mov|ogv|mp3|m4a|m3u8|mpd)(\?|#|$)/i,
  HOVER=matchMedia('(hover:hover) and (pointer:fine)').matches,COARSE=matchMedia('(pointer:coarse)').matches;
-const el={bar:$('#bar'),prog:$('#prog'),buf:$('#buf'),knob:$('#knob'),tm:$('#tm'),tip:$('#tip'),pt:$('#pt'),pv:$('#pv'),spin:$('#spin'),qm:$('#qm'),set:$('#set'),empty:$('#empty')};
+const el={bar:$('#bar'),prog:$('#prog'),buf:$('#buf'),knob:$('#knob'),tm:$('#tm'),tip:$('#tip'),pvw:$('#pvw'),pvi:$('#pvi'),pt:$('#pt'),pv:$('#pv'),spin:$('#spin'),qm:$('#qm'),set:$('#set'),empty:$('#empty')};
 let hls=null,dash=null,srcs=[],curUrl='',lastType='',goFn=null,idle,lastSave=0,wd,hr=0,nr=0,stalls=0,
  sk=null,skT,lastSkip=0,drag=0,raf=0,lastPaint=0,lastSec=-1,barW=0,wt2,A=null,B=null,ac,gn,pl=[],pi=0,moved=false,pd=0,
- rot=0,flip=1,Z=1,PX=0,PY=0,sdel=0,sl,chk,pvU='',pvP=0,ph=null,pvT=0,pvB=0,pvRel,pvLast=0,pvTm=0,lastMove=0,sti=0,
+ rot=0,flip=1,Z=1,PX=0,PY=0,sdel=0,sl,chk,pvU='',pvP=0,ph=null,pvT=0,pvBk=-1,pvReqT=-1,pvReqBk=-1,pvB=0,pvRel,pvLast=0,pvTm=0,pvWd=0,pvGen=0,pvCUrl='',pvNoCap=0,pvCv=null,lastMove=0,sti=0,
  blobUrl='',subBlob='',lastPt='mouse',clkT=0,spT=0,spDown=0,spHold=0,spPrev=1,msT=0,msHold=0,msPrev=1,msX=0,msY=0;
-const ptr=new Map();
+const ptr=new Map(),pvC=new Map();
 const fmt=t=>{if(!isFinite(t))return'0:00';t=~~t;const h=~~(t/3600),m=~~(t%3600/60),s=t%60;return(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0')};
 const say=(m,ms=2500)=>{const e=$('#msg');e.textContent=m;e.style.opacity=1;clearTimeout(say.t);say.t=setTimeout(()=>e.style.opacity=0,ms)};
 function esc(s){return String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')}
@@ -415,37 +418,79 @@ const endDrag=e=>{if(!drag)return;drag=0;st.classList.remove('scrub');seekGo();i
 el.bar.onpointerup=el.bar.onpointercancel=endDrag;
 el.bar.onpointerleave=()=>{if(!drag)hideTip()};
 
-/* ---------- hover preview (throttled for smooth 4K/local decoding) ---------- */
-function hideTip(){el.tip.style.display='none';clearTimeout(pvTm);clearTimeout(pvRel);pvRel=setTimeout(pvFree,10000)}
-function pvFree(){clearTimeout(pvTm);if(ph){ph.destroy();ph=null}el.pv.removeAttribute('src');el.pv.load();pvU=''}
+/* ---------- hover preview: on-demand fastSeek + deadlock fix + visited cache ---------- */
+const pvStep=d=>Math.max(1,Math.min(8,Math.round(d/150)));
+function hideTip(){el.tip.style.display='none';clearTimeout(pvTm);clearTimeout(pvWd);pvB=0;el.pvw.classList.remove('ld');clearTimeout(pvRel);pvRel=setTimeout(pvFree,10000)}
+function pvFree(){clearTimeout(pvTm);clearTimeout(pvWd);pvB=0;pvGen++;el.pvw.classList.remove('ld');if(ph){ph.destroy();ph=null}el.pv.removeAttribute('src');el.pv.load();pvU=''}
+function pvReset(){pvC.clear();pvCUrl='';pvNoCap=0;el.pvi.hidden=true;el.pvi.removeAttribute('src');el.tip.classList.remove('nov');pvFree()}
+function pvCap(bk){
+ if(pvNoCap||bk<0||pvCUrl!==curUrl)return;
+ const p=el.pv;if(!p.videoWidth||p.readyState<2)return;
+ try{
+  if(!pvCv){pvCv=document.createElement('canvas');pvCv.width=160;pvCv.height=90}
+  pvCv.getContext('2d').drawImage(p,0,0,160,90);
+  const d=pvCv.toDataURL('image/jpeg',.65);
+  if(d&&d.length>200){if(pvC.size>=60)pvC.delete(pvC.keys().next().value);pvC.set(bk,d)}
+ }catch{pvNoCap=1;pvCv=null}}
 function pvLoad(){const p=el.pv,g=el.tip;
- if(!/^(https?|blob):/.test(curUrl)||(COARSE&&v.videoWidth>2560)||st.classList.contains('web')||/\.mpd(\?|#|$)/i.test(curUrl)){g.classList.add('nov');return}
- if(pvU===curUrl)return;pvU=curUrl;pvFree();pvU=curUrl;g.classList.remove('nov');pvB=0;pvP=0;
+ if(!/^(https?|blob):/.test(curUrl)||(v.readyState>=1&&!v.videoWidth)||(COARSE&&v.videoWidth>2560)||st.classList.contains('web')||/\.mpd(\?|#|$)/i.test(curUrl)){g.classList.add('nov');return}
+ if(pvU===curUrl)return;pvFree();pvU=curUrl;g.classList.remove('nov');pvB=0;pvP=0;
  if(/\.m3u8(\?|#|$)/i.test(curUrl)&&window.Hls&&Hls.isSupported()){
   ph=new Hls({maxBufferLength:3,capLevelToPlayerSize:true});ph.loadSource(curUrl);ph.attachMedia(p);
   ph.on(Hls.Events.MANIFEST_PARSED,(e,d)=>{let k=0;d.levels.forEach((l,i)=>{if(l.bitrate<d.levels[k].bitrate)k=i});ph.currentLevel=k});
   ph.on(Hls.Events.ERROR,(e,d)=>{if(d.fatal)g.classList.add('nov')})
  }else p.src=curUrl}
 function pvSeek(){
- const p=el.pv;if(pvB||p.readyState<1)return;
- const now=performance.now(),wait=110-(now-pvLast);
+ const p=el.pv;
+ if(el.tip.style.display==='none'||el.tip.classList.contains('nov')||!el.pvi.hidden)return;
+ if(p.readyState<1){el.pvw.classList.add('ld');return}
+ if(pvB)return;
+ const gap=/^blob:/.test(curUrl)?75:140,now=performance.now(),wait=gap-(now-pvLast);
  if(wait>0){clearTimeout(pvTm);pvTm=setTimeout(pvSeek,wait);return}
- pvLast=now;pvB=1;try{p.currentTime=pvT}catch{pvB=0}}
-el.pv.addEventListener('seeked',()=>{pvB=0;if(Math.abs(el.pv.currentTime-pvT)>1)pvSeek()});
-el.pv.addEventListener('loadedmetadata',pvSeek);
-el.pv.addEventListener('error',()=>{const s=el.pv.getAttribute('src');if(!s)return;if(/^https?:/.test(s)&&!pvP){pvP=1;pvB=0;el.pv.src='/api/proxy?u='+encodeURIComponent(s);return}el.tip.classList.add('nov')});
+ if(Math.abs(p.currentTime-pvT)<.25&&p.readyState>=2){el.pvw.classList.remove('ld');pvCap(pvBk);return}
+ pvLast=now;pvB=1;pvReqT=pvT;pvReqBk=pvBk;el.pvw.classList.add('ld');
+ const gen=pvGen;clearTimeout(pvWd);
+ pvWd=setTimeout(()=>{
+  if(gen!==pvGen)return;
+  pvB=0;
+  if(el.pvi.hidden&&el.tip.style.display!=='none'&&!el.tip.classList.contains('nov')&&Math.abs(pvReqT-pvT)>.8)pvSeek();
+  else el.pvw.classList.remove('ld')
+ },1500);
+ try{if(typeof p.fastSeek==='function'&&!ph)p.fastSeek(pvT);else p.currentTime=pvT}
+ catch{try{p.currentTime=pvT}catch{clearTimeout(pvWd);pvB=0;el.pvw.classList.remove('ld')}}}
+el.pv.addEventListener('seeked',()=>{
+ clearTimeout(pvWd);pvB=0;
+ pvCap(pvReqBk);
+ if(el.pvi.hidden&&el.tip.style.display!=='none'&&!el.tip.classList.contains('nov')&&Math.abs(pvReqT-pvT)>.8)pvSeek();
+ else el.pvw.classList.remove('ld')});
+el.pv.addEventListener('loadedmetadata',()=>{if(!el.pv.videoWidth){el.tip.classList.add('nov');return}pvSeek()});
+el.pv.addEventListener('error',()=>{
+ clearTimeout(pvWd);pvB=0;el.pvw.classList.remove('ld');
+ const s=el.pv.getAttribute('src');if(!s)return;
+ if(/^https?:/.test(s)&&!pvP){pvP=1;el.pv.src='/api/proxy?u='+encodeURIComponent(s);return}
+ el.tip.classList.add('nov')});
 function tipAt(e){const r=el.bar.getBoundingClientRect(),f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),d=v.duration||0,g=el.tip;
  clearTimeout(pvRel);g.style.display='block';
+ const t=f*d;el.pt.textContent=fmt(t);
+ if(d&&isFinite(d)){
+  if(pvCUrl!==curUrl){pvC.clear();pvCUrl=curUrl;pvNoCap=0}
+  const nov=!/^(https?|blob):/.test(curUrl)||(v.readyState>=1&&!v.videoWidth)||(COARSE&&v.videoWidth>2560)||st.classList.contains('web')||/\.mpd(\?|#|$)/i.test(curUrl);
+  if(nov)g.classList.add('nov');
+  else{
+   const step=pvStep(d),bk=Math.round(t/step)*step,hit=pvC.get(bk);
+   pvT=t;pvBk=bk;
+   if(hit){g.classList.remove('nov');clearTimeout(pvTm);el.pvi.src=hit;el.pvi.hidden=false;el.pvw.classList.remove('ld')}
+   else{el.pvi.hidden=true;pvLoad();if(!g.classList.contains('nov'))pvSeek()}
+  }
+ }
  const hw=g.classList.contains('nov')?36:86;
- g.style.transform='translateX('+Math.min(Math.max(f*r.width,hw),Math.max(hw,r.width-hw))+'px) translateX(-50%)';
- el.pt.textContent=fmt(f*d);
- if(d&&isFinite(d)){pvLoad();pvT=f*d;if(!g.classList.contains('nov'))pvSeek()}}
+ g.style.transform='translateX('+Math.min(Math.max(f*r.width,hw),Math.max(hw,r.width-hw))+'px) translateX(-50%)'}
 
 /* ---------- load / start ---------- */
 function freeBlob(keep){if(blobUrl&&blobUrl!==keep){pvFree();URL.revokeObjectURL(blobUrl);blobUrl=''}}
 function load(url,t=0,auto=true,type=''){
  if(window.axLazy&&axLazy(url,()=>load(url,t,auto,type)))return;
- unweb();clearErr();freeBlob(url);if(/^blob:/.test(url))blobUrl=url;
+ unweb();clearErr();pvReset();freeBlob(url);if(/^blob:/.test(url))blobUrl=url;
  st.classList.add('has');lastType=type;hr=0;
  clearTimeout(wd);wd=setTimeout(()=>{if(!v.readyState&&!st.classList.contains('failed')&&!st.classList.contains('web'))fail('This is taking too long','The video did not start loading within a minute.','The link may be slow, expired or blocked. Try again or open it in a new tab.')},60000);
  if(hls){hls.destroy();hls=null}if(dash){dash.reset();dash=null}
@@ -807,14 +852,14 @@ async function findSiblings(s){
 /* ---------- web page mode ---------- */
 function web(u){
  if(hls){hls.destroy();hls=null}if(dash){dash.reset();dash=null}
- freeBlob('');v.pause();v.querySelectorAll('source').forEach(x=>x.remove());v.removeAttribute('src');v.load();
+ pvReset();freeBlob('');v.pause();v.querySelectorAll('source').forEach(x=>x.remove());v.removeAttribute('src');v.load();
  curUrl=u;clearTimeout(wd);clearErr();st.classList.add('has');st.classList.remove('vert');el.empty.hidden=true;el.spin.hidden=true;
  $('#fr').src=u;$('#fr').hidden=false;$('#wb').hidden=false;st.classList.add('web')}
 function unweb(){
  if($('#fr').hidden)return;
  $('#fr').src='about:blank';$('#fr').hidden=true;$('#wb').hidden=true;st.classList.remove('web')}
 $('#wt').onclick=()=>window.open(curUrl,'_blank','noopener');
-$('#wx').onclick=()=>{unweb();freeBlob('');curUrl='';st.classList.remove('has','vert');el.empty.hidden=false};
+$('#wx').onclick=()=>{unweb();pvReset();freeBlob('');curUrl='';st.classList.remove('has','vert');el.empty.hidden=false};
 
 if(/[?&](u|url|link|src|video)=/.test(location.search)){$('#url').value=location.href;start()}
 </script></body></html>
