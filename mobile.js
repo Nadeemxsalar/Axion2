@@ -10,6 +10,7 @@
 const SKIP='#ctl,#bp,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb,#qb,#gear,#qs,#pl,#axlockb,#axlockov,#axunl,#axtr';
 const CSS=`
 #stage *{-webkit-tap-highlight-color:transparent}
+#msg.axq{opacity:0!important;transition:none!important}
 #spin{animation:r .9s linear infinite,axsf .25s ease .35s backwards}
 @keyframes axsf{from{opacity:0}}
 #stage.paused #bp{animation:axbp .22s cubic-bezier(.2,.8,.2,1)}
@@ -205,10 +206,10 @@ function init(){
   flag(750);skb.querySelector('b').textContent=F(t);skb.querySelector('small').textContent=(d>0?'+':d<0?'\u2212':'')+Math.abs(d)+'s';
   skb.classList.add('on');clearTimeout(skT2);skT2=setTimeout(()=>skb.classList.remove('on'),700)};
  if(msg)new MutationObserver(()=>{
-  msg.style.opacity='';
+  msg.classList.remove('axq');
   if(!touchy())return;
   const m=msg.textContent;let x;
-  const quiet=()=>{msg.style.opacity='0'};
+  const quiet=()=>msg.classList.add('axq');
   if(x=/^Volume (\d+)%$/.exec(m)){const p=Math.max(0,Math.min(1,+x[1]/100));showHud('v',p,Math.round(p*100)+'%',p<=0?SVG.vol0:p<.5?SVG.vol1:SVG.vol2);limit('v',p<=0||p>=1);quiet()}
   else if(x=/^Brightness (\d+)%$/.exec(m)){const b=+x[1];showHud('b',(b-50)/100,b+'%',SVG.sun);limit('b',b<=50||b>=150);quiet()}
   else if(x=/^([+\-\u2212]?\d+)s$/.exec(m)){showSk(+x[1].replace('\u2212','-'));quiet()}
