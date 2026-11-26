@@ -4,9 +4,10 @@
 3. one tap shows / hides the controls at once (setting: tap can still play / pause), centre double-tap = play / pause
 4. small vibration on gestures (setting)
 5. screen lock: no accidental touches, hold the lock pill to unlock
-6. thin progress line while the controls are hidden (setting) */
+6. thin progress line while the controls are hidden (setting)
+7. auto title for direct links + rotate, audio & subtitle icons below the top title on mobile (XPlayer / PLAYit style) */
 (()=>{
-const SKIP='#ctl,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb,#qb,#gear,#qs,#pl,#axlockb,#axlockov,#axunl';
+const SKIP='#ctl,#bp,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb,#qb,#gear,#qs,#pl,#axlockb,#axlockov,#axunl,#axtr';
 const CSS=`
 #stage *{-webkit-tap-highlight-color:transparent}
 #spin{animation:r .9s linear infinite,axsf .25s ease .35s backwards}
@@ -40,6 +41,12 @@ const CSS=`
 #axlockb{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right));z-index:3;width:40px;height:40px;padding:0;border-radius:50%;background:rgba(14,17,27,.62);color:#fff;display:none;place-items:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .12s}
 #axlockb:active{transform:scale(.9)}
 #axlockb svg{width:20px;height:20px}
+#axtr{position:absolute;top:calc(44px + env(safe-area-inset-top,0px));left:max(14px,env(safe-area-inset-left));z-index:3;display:none;align-items:center;gap:8px;opacity:0;pointer-events:none;transition:opacity .25s}
+#axtr[hidden],#axtr button[hidden]{display:none!important}
+#stage.axnottl #axtr{top:calc(10px + env(safe-area-inset-top,0px))}
+#axtr button{width:36px;height:36px;min-height:0;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(14,17,27,.64);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#fff;display:grid;place-items:center;transition:transform .12s,background-color .15s}
+#axtr button:active{transform:scale(.9);background:rgba(14,17,27,.86)}
+#axtr svg{width:18px;height:18px;display:block}
 #axlockov{position:absolute;inset:0;z-index:5;display:none;touch-action:none}
 #stage.axlocked #axlockov{display:block}
 #axunl{position:absolute;left:50%;bottom:calc(22% + env(safe-area-inset-bottom,0px));transform:translate(-50%,10px);display:flex;align-items:center;gap:10px;padding:12px 20px;border-radius:99px;background:rgba(14,17,27,.82);color:#fff;font-weight:600;font-size:14px;opacity:0;pointer-events:none;overflow:hidden;transition:opacity .2s,transform .2s;user-select:none;-webkit-user-select:none}
@@ -48,26 +55,35 @@ const CSS=`
 #axunl .rg{position:absolute;left:0;top:0;bottom:0;width:100%;background:color-mix(in srgb,var(--ac,#f5b83d) 55%,transparent);transform:scaleX(0);transform-origin:left;pointer-events:none}
 #axunl.hold .rg{transform:scaleX(1);transition:transform .65s linear}
 #axunl span{position:relative}
-#stage.axmenu #axlockb{opacity:0!important;pointer-events:none!important} /* Settings / menu open: the lock button would sit on top of the close button */
-#stage.axhud #ctl,#stage.axhud #ttl,#stage.axhud #axlockb{opacity:0!important;pointer-events:none!important}
-#stage.axlocked #ctl,#stage.axlocked #ttl,#stage.axlocked #axlockb{opacity:0!important;pointer-events:none!important}
+#stage.axmenu #axlockb,#stage.axmenu #axtr{opacity:0!important;pointer-events:none!important} /* Settings / menu open: keep top icons out of the way */
+#stage.axhud #ctl,#stage.axhud #ttl,#stage.axhud #axlockb,#stage.axhud #axtr{opacity:0!important;pointer-events:none!important}
+#stage.axlocked #ctl,#stage.axlocked #ttl,#stage.axlocked #axlockb,#stage.axlocked #axtr{opacity:0!important;pointer-events:none!important}
 @media(pointer:coarse){
  /* the empty gradient above the buttons used to swallow every touch: only the real controls take touches now, so swipes and taps work on the whole picture */
  #ctl{pointer-events:none}#ctl>*{pointer-events:auto}#stage.idle #ctl>*{pointer-events:none}
+ #ctl #aub,#ctl #ccb{display:none!important}
  #axlockb{display:grid}
- #stage.has:not(.web):not(.failed):not(.idle):not(.axlocked) #axlockb{opacity:1;pointer-events:auto}
- #stage.has:not(.web):not(.failed) #ttl{padding-right:64px}
+ #axtr{display:flex}
+ #stage.has:not(.web):not(.failed):not(.idle):not(.axlocked) #axlockb,#stage.has:not(.web):not(.failed):not(.idle):not(.axlocked) #axtr{opacity:1;pointer-events:auto}
+ #stage.has:not(.web):not(.failed) #ttl{padding-right:max(64px,calc(56px + env(safe-area-inset-right,0px)))}
  #bar::before{content:"";position:absolute;left:0;right:0;top:-16px;bottom:-4px}
  #stage.has.idle:not(.web):not(.failed):not(.axmini-off) #axmini,#stage.has.axlocked:not(.web):not(.failed):not(.axmini-off) #axmini{opacity:1}
+}
+@media(pointer:coarse) and (max-height:500px) and (orientation:landscape){
+ #axtr{top:calc(40px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left))}
+ #stage.axnottl #axtr{top:calc(10px + env(safe-area-inset-top,0px))}
 }
 /* not needed in full screen */
 #stage:fullscreen #axmini{opacity:0!important}
 #stage:-webkit-full-screen #axmini{opacity:0!important}
-@media(prefers-reduced-motion:reduce){#axm .hud,#axm .sk,#axm .fast,#axmini i,#axunl{transition:none}#stage.paused #bp{animation:none}}
+@media(prefers-reduced-motion:reduce){#axm .hud,#axm .sk,#axm .fast,#axmini i,#axunl,#axtr{transition:none}#stage.paused #bp{animation:none}}
 `;
 const SVG={
  play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>',
  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>',
+ rot:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3.5a9 9 0 0 1 5 5.5"/><path d="M20.5 5v4h-4"/><path d="M8.5 20.5a9 9 0 0 1-5-5.5"/><path d="M3.5 19v-4h4"/><rect x="8.5" y="6.5" width="7" height="11" rx="1.5" transform="rotate(-45 12 12)"/></svg>',
+ aud:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>',
+ cc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="14" x="3" y="5" rx="2"/><path d="M10.5 10.5a2.5 2.5 0 1 0 0 3"/><path d="M17.5 10.5a2.5 2.5 0 1 0 0 3"/></svg>',
  vol0:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 5 6m0-6-5 6"/></svg>',
  vol1:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></svg>',
  vol2:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5M18.5 6.5a8 8 0 0 1 0 11"/></svg>',
@@ -93,9 +109,13 @@ function init(){
   '<div class="sk"><b>0:00</b><small>+0s</small></div><div class="fast">2× speed</div><div class="pop">'+SVG.play+'</div>';
  const mini=document.createElement('div');mini.id='axmini';mini.innerHTML='<i></i>';
  const lockB=document.createElement('button');lockB.id='axlockb';lockB.type='button';lockB.title='Lock screen';lockB.setAttribute('aria-label','Lock screen');lockB.innerHTML=SVG.lock;
+ const trBar=document.createElement('div');trBar.id='axtr';trBar.hidden=true;
+ trBar.innerHTML='<button id="axrot" type="button" title="Rotate screen" aria-label="Rotate screen" hidden>'+SVG.rot+'</button>'+
+  '<button id="axaub" type="button" title="Audio track" aria-label="Audio track" hidden>'+SVG.aud+'</button>'+
+  '<button id="axccb" type="button" title="Subtitles" aria-label="Subtitles" hidden>'+SVG.cc+'</button>';
  const ov=document.createElement('div');ov.id='axlockov';
  ov.innerHTML='<div id="axunl"><i class="rg"></i>'+SVG.lock+'<span>Hold to unlock</span></div>';
- st.append(layer,mini,lockB,ov);
+ st.append(layer,mini,lockB,trBar,ov);
  const q=s=>layer.querySelector(s),rp={l:q('.rp.l'),r:q('.rp.r')},hud={v:q('.hud.v'),b:q('.hud.b')},skb=q('.sk'),fast=q('.fast'),pop=q('.pop'),unl=ov.firstChild;
  st.classList.toggle('axmini-off',!P.mini);
 
@@ -185,10 +205,11 @@ function init(){
   flag(750);skb.querySelector('b').textContent=F(t);skb.querySelector('small').textContent=(d>0?'+':d<0?'\u2212':'')+Math.abs(d)+'s';
   skb.classList.add('on');clearTimeout(skT2);skT2=setTimeout(()=>skb.classList.remove('on'),700)};
  if(msg)new MutationObserver(()=>{
+  msg.style.opacity='';
   if(!touchy())return;
   const m=msg.textContent;let x;
   const quiet=()=>{msg.style.opacity='0'};
-  if(x=/^Volume (\d+)%$/.exec(m)){const p=v.muted?0:v.volume;showHud('v',p,Math.round(p*100)+'%',p<=0?SVG.vol0:p<.5?SVG.vol1:SVG.vol2);limit('v',p<=0||p>=1);quiet()}
+  if(x=/^Volume (\d+)%$/.exec(m)){const p=Math.max(0,Math.min(1,+x[1]/100));showHud('v',p,Math.round(p*100)+'%',p<=0?SVG.vol0:p<.5?SVG.vol1:SVG.vol2);limit('v',p<=0||p>=1);quiet()}
   else if(x=/^Brightness (\d+)%$/.exec(m)){const b=+x[1];showHud('b',(b-50)/100,b+'%',SVG.sun);limit('b',b<=50||b>=150);quiet()}
   else if(x=/^([+\-\u2212]?\d+)s$/.exec(m)){showSk(+x[1].replace('\u2212','-'));quiet()}
   else if(m==='2\u00d7 speed'){fast.classList.add('on');buzz(22);quiet()}
@@ -212,12 +233,62 @@ function init(){
  unl.addEventListener('pointerdown',e=>{unl.classList.add('hold');clearTimeout(utimer);clearTimeout(hold);hold=setTimeout(unlock,650)});
  const rel=()=>{clearTimeout(hold);unl.classList.remove('hold');clearTimeout(utimer);utimer=setTimeout(()=>unl.classList.remove('on'),2200)};
  ['pointerup','pointercancel','pointerleave'].forEach(n=>unl.addEventListener(n,rel));
- v.addEventListener('emptied',()=>{if(!st.classList.contains('has'))unlock()});
+ v.addEventListener('emptied',()=>{if(!st.classList.contains('has')&&st.classList.contains('axlocked'))unlock()});
 
  /* ---------- 6. mini progress line ---------- */
  const fill=mini.firstChild;
  const upd=()=>{const d=v.duration;fill.style.transform='scaleX('+(d&&isFinite(d)?Math.min(1,v.currentTime/d):0)+')'};
  ['timeupdate','seeked','loadedmetadata','durationchange','emptied'].forEach(n=>v.addEventListener(n,upd));upd();
+
+ /* ---------- 7. auto title for direct links + mobile rotate / audio / subtitle icons below title ---------- */
+ const mRot=document.getElementById('axrot'),mAud=document.getElementById('axaub'),mCc=document.getElementById('axccb'),ttlEl=document.getElementById('ttl');
+ let srcAud=null,srcCc=null;
+ const urlTitle=u=>{
+  try{
+   const parsed=new URL(u),seg=parsed.pathname.split('/').filter(Boolean).pop()||'';
+   let n='';try{n=decodeURIComponent(seg)}catch{n=seg}
+   n=n.replace(/\+/g,' ').trim();
+   return n||parsed.hostname
+  }catch{return''}};
+ const syncTtl=()=>st.classList.toggle('axnottl',!!(!ttlEl||ttlEl.style.display==='none'||!ttlEl.textContent.trim()));
+ const fillTtl=()=>{
+  if(!ttlEl)return;
+  if(!ttlEl.textContent.trim()){
+   const u=typeof curUrl==='string'?curUrl:'';
+   if(/^blob:/.test(u)&&typeof pl!=='undefined'&&pl[pi]&&pl[pi].name)ttlEl.textContent=pl[pi].name;
+   else if(/^https?:/.test(u)){const t=urlTitle(u);if(t){ttlEl.textContent=t;if(document.title==='Axion')document.title=t+' · Axion'}}}
+  syncTtl()};
+ const syncTr=()=>{
+  const a=document.getElementById('aub'),c=document.getElementById('ccb');
+  if(a&&a!==srcAud){srcAud=a;new MutationObserver(syncTr).observe(a,{attributes:true,attributeFilter:['hidden','title']})}
+  if(c&&c!==srcCc){srcCc=c;new MutationObserver(syncTr).observe(c,{attributes:true,attributeFilter:['hidden','title']})}
+  mRot.hidden=!v.videoWidth;
+  mAud.hidden=!(a&&!a.hidden);if(a&&a.title)mAud.title=a.title;
+  mCc.hidden=!(c&&!c.hidden);if(c&&c.title)mCc.title=c.title;
+  trBar.hidden=mRot.hidden&&mAud.hidden&&mCc.hidden};
+ if(ttlEl)new MutationObserver(syncTtl).observe(ttlEl,{attributes:true,attributeFilter:['style'],childList:true,characterData:true,subtree:true});
+ const ctlRow=document.querySelector('#ctl .row');
+ if(ctlRow)new MutationObserver(syncTr).observe(ctlRow,{childList:true});
+ ['loadstart','loadedmetadata'].forEach(n=>v.addEventListener(n,fillTtl));
+ ['loadstart','loadedmetadata','resize','emptied'].forEach(n=>v.addEventListener(n,syncTr));
+ document.addEventListener('DOMContentLoaded',()=>{fillTtl();syncTr()});
+ fillTtl();syncTr();
+ trBar.addEventListener('pointerdown',stop);trBar.addEventListener('pointerup',stop);
+ mRot.addEventListener('click',async e=>{
+  e.stopPropagation();buzz(15);
+  const wasFs=!!document.fullscreenElement,land=innerWidth>innerHeight,want=land?'portrait':'landscape';
+  try{
+   if(!wasFs&&st.requestFullscreen)await st.requestFullscreen();
+   if(screen.orientation&&screen.orientation.lock){
+    await screen.orientation.lock(want);
+    say(want==='landscape'?'Landscape':'Portrait',1400);
+    return}
+  }catch{}
+  if(!wasFs&&document.fullscreenElement)document.exitFullscreen().catch(()=>{});
+  const rb=document.getElementById('rot');
+  if(rb){rb.click();say('Rotated',1200)}});
+ mAud.addEventListener('click',e=>{e.stopPropagation();const a=document.getElementById('aub');a&&a.click()});
+ mCc.addEventListener('click',e=>{e.stopPropagation();const c=document.getElementById('ccb');c&&c.click()});
 }
 document.readyState==='loading'?document.addEventListener('DOMContentLoaded',init):init();
 })();

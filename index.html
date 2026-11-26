@@ -161,7 +161,7 @@ video{width:100%;height:100%;display:block}
 #qm button:hover{background:var(--btn)}#qm button.on{background:var(--btn);color:var(--act);font-weight:600}#qm button.on::after{content:"✓"}
 #set:not([hidden]),#qm:not([hidden]){animation:pop .15s ease-out}
 @keyframes pop{from{opacity:0;transform:translateY(6px)}}
-@media(prefers-reduced-motion:reduce){#set,#qm{animation:none!important}#pvw.ld::after{animation:none!important}}
+@media(prefers-reduced-motion:reduce){#set,#qm{animation:none!important}#pvw.ld::after{animation:none!important}#pb span{transition:none!important}}
 
 /* link panel */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;margin-top:12px;box-shadow:0 12px 30px -20px #000a}
@@ -171,6 +171,12 @@ video{width:100%;height:100%;display:block}
 .lk input{flex:1;min-width:0;background:none;border:0;padding:11px 4px;color:var(--tx);font:inherit}
 .lk input:focus-visible{outline:0}
 .lk button{width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px}
+#pb{position:relative;overflow:hidden;flex:none}
+#pb span{position:absolute;inset:0;display:grid;place-items:center;transition:opacity .18s ease,transform .22s cubic-bezier(.22,1,.36,1);will-change:opacity,transform}
+#pb .ic-p{opacity:1;transform:scale(1) rotate(0deg)}
+#pb .ic-x{opacity:0;transform:scale(.55) rotate(-90deg)}
+#pb.clr .ic-p{opacity:0;transform:scale(.55) rotate(90deg)}
+#pb.clr .ic-x{opacity:1;transform:scale(1) rotate(0deg)}
 .lr{display:flex;gap:8px;align-items:stretch}
 .lr .lk{flex:1;min-width:0}
 .lr .go{padding:0 28px;min-width:92px;border-radius:13px}
@@ -310,13 +316,13 @@ textarea{width:100%;min-height:70px;background:var(--inp);border:1px solid var(-
  <div class="lk">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>
   <input id="url" type="text" placeholder="Paste a video link, HTML code, BB code or embed code" autocomplete="off" spellcheck="false">
-  <button id="pb" title="Paste link from clipboard"></button>
+  <button id="pb" type="button" title="Paste link from clipboard" aria-label="Paste link from clipboard"></button>
  </div>
  <button id="play" class="go">Play</button>
  </div>
  <div class="row acts">
   <button id="of2">Open file</button>
-  <input id="file" type="file" accept="video/*,audio/*,.mkv" multiple hidden>
+  <input id="file" type="file" accept="video/*,audio/*,.mkv,.avi,.ts,.m2ts,.flv,.wmv,.vob,.3gp,.flac,.opus,.ogg,.oga,.wav,.aac,.wma,.mka,.ac3,.dts" multiple hidden>
   <button id="dl">Download (IDM)</button>
   <button id="cp">Copy link for IDM</button>
  </div>
@@ -392,8 +398,9 @@ function loop(ts){raf=0;if(v.paused||document.hidden)return;
 const kick=()=>{if(!raf&&!v.paused&&!document.hidden)raf=requestAnimationFrame(loop)};
 v.addEventListener('play',kick);v.addEventListener('playing',kick);document.addEventListener('visibilitychange',kick);
 new ResizeObserver(()=>{barW=el.bar.clientWidth;paint(sk===null?v.currentTime:sk,v.duration,1)}).observe(el.bar);
+const ctlHover=()=>HOVER&&(el.bar.matches(':hover')||$('#ctl .row').matches(':hover'));
 function showCtl(){const was=st.classList.contains('idle');st.classList.remove('idle');if(was)paint(v.currentTime,v.duration,1);
- clearTimeout(idle);idle=setTimeout(()=>{if(!v.paused&&el.set.hidden&&el.qm.hidden&&!drag)st.classList.add('idle')},+S.hide)}
+ clearTimeout(idle);idle=setTimeout(()=>{if(!v.paused&&el.set.hidden&&el.qm.hidden&&!drag&&!ctlHover())st.classList.add('idle')},+S.hide)}
 st.onmousemove=()=>{const n=performance.now();if(n-lastMove>80||st.classList.contains('idle')){lastMove=n;showCtl()}};
 v.ontimeupdate=()=>{
  if(B!==null&&B>A&&v.currentTime>=B)v.currentTime=A;
@@ -416,7 +423,8 @@ el.bar.onpointerdown=e=>{drag=1;st.classList.add('scrub');try{el.bar.setPointerC
 el.bar.onpointermove=e=>{if(drag)bseek(e);tipAt(e)};
 const endDrag=e=>{if(!drag)return;drag=0;st.classList.remove('scrub');seekGo();if(e.pointerType!=='mouse'||!el.bar.matches(':hover'))hideTip()};
 el.bar.onpointerup=el.bar.onpointercancel=endDrag;
-el.bar.onpointerleave=()=>{if(!drag)hideTip()};
+el.bar.onpointerleave=()=>{if(!drag)hideTip();showCtl()};
+$('#ctl .row').addEventListener('pointerleave',showCtl);
 
 /* ---------- hover preview: on-demand fastSeek + deadlock fix + visited cache ---------- */
 const pvStep=d=>Math.max(1,Math.min(8,Math.round(d/150)));
@@ -700,7 +708,7 @@ $('#fw').innerHTML=ic('<path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 3 
 $('#of').innerHTML=ic('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>');
 $('#fs').innerHTML=IFS;
 $('#sx').innerHTML=ic('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>');
-$('#pb').innerHTML=ic('<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>');
+$('#pb').innerHTML='<span class="ic-p">'+ic('<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>')+'</span><span class="ic-x">'+ic('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>')+'</span>';
 $('#bp').innerHTML=PL;
 try{const sv=JSON.parse(localStorage.axVol||'null');if(sv){if(typeof sv.v==='number')v.volume=Math.min(1,Math.max(0,sv.v));if(typeof sv.m==='boolean')v.muted=sv.m}}catch{}
 v.onvolumechange=()=>{const m=v.muted||!v.volume;$('#mt').innerHTML=m?I.off:I.on;$('#vol').value=m?0:v.volume;
@@ -763,13 +771,15 @@ const syncPos=()=>{
  if(!('mediaSession' in navigator)||!navigator.mediaSession.setPositionState)return;
  if(isFinite(v.duration)&&v.duration>0)try{navigator.mediaSession.setPositionState({duration:v.duration,playbackRate:v.playbackRate,position:Math.min(v.duration,Math.max(0,v.currentTime))})}catch{}};
 ['loadedmetadata','play','pause','seeked','ratechange'].forEach(n=>v.addEventListener(n,syncPos));
-function openFiles(fl){pl=[...fl].filter(f=>/^(video|audio)/.test(f.type)||/\.(mkv|mp4|webm|mov|m4v|mp3|m4a)$/i.test(f.name));if(pl.length)playIdx(0);else say('No playable video or audio files found',3500)}
+function openFiles(fl){pl=[...fl].filter(f=>/^(video|audio)\//i.test(f.type)||/\.(mp4|m4v|mkv|webm|mov|avi|wmv|flv|f4v|ts|m2ts|mts|3gp|3g2|mpg|mpeg|mpe|vob|ogv|ogm|asf|divx|xvid|rm|rmvb|mxf|wtv|mp2v|mpv|m2v|dv|y4m|h264|h265|hevc|mp3|m4a|m4b|aac|flac|wav|wave|ogg|oga|opus|wma|mka|weba|aiff|aif|aifc|alac|amr|ape|ac3|eac3|ec3|dts|caf|mp2|mp1|mpa|wv|mpc|spx|tta|dsf|dff|ra|ram|au|snd|mid|midi)$/i.test(f.name));if(pl.length)playIdx(0);else say('No playable video or audio files found',3500)}
 function playIdx(i){
  pi=(i+pl.length)%pl.length;const f=pl[pi],u=URL.createObjectURL(f),multi=pl.length>1;
  $('#ttl').textContent=f.name;document.title=f.name+' · Axion';setMeta(f.name);
  srcs=[{n:f.name,url:u}];setQ([[f.name.slice(0,22),0]],0);v.poster='';load(u);
  $('#prv').hidden=$('#nxt').hidden=!multi;
- const e=$('#pl');e.hidden=!multi;e.innerHTML=pl.map((x,j)=>`<button data-i="${j}"${j==pi?' class="go"':''}>${esc(x.name)}</button>`).join('')}
+ const e=$('#pl');
+ if(!document.getElementById('lib')){e.hidden=!multi;e.innerHTML=multi?pl.map((x,j)=>`<button data-i="${j}"${j==pi?' class="go"':''}>${esc(x.name)}</button>`).join(''):''}
+ else{e.hidden=true;if(e.firstChild)e.textContent=''}}
 $('#pl').onclick=e=>{const b=e.target.closest('button');if(b)playIdx(+b.dataset.i)};
 v.onended=()=>pl.length>1&&playIdx(pi+1);
 if('mediaSession' in navigator){const m=navigator.mediaSession,h=(a,f)=>{try{m.setActionHandler(a,f)}catch{}};
@@ -813,13 +823,18 @@ const cycAud=()=>{const s=audSrc();s?setAud((s.c+1)%s.a.length):say('No other au
 $('#aud').onclick=$('#aub').onclick=audMenu;
 v.addEventListener('loadedmetadata',audUI);v.audioTracks?.addEventListener?.('addtrack',audUI);
 
-/* ---------- paste, drop ---------- */
+/* ---------- paste, clear & drop ---------- */
 const looksLink=s=>!!snip(s)||/^https?:\/\//i.test(s)||(/^[A-Za-z0-9+\/_=-]{40,}$/.test(s)&&/^https?:\/\//i.test(b64(s)));
+const syncPb=()=>{const has=!!$('#url').value.trim(),b=$('#pb'),lbl=has?'Clear link':'Paste link from clipboard';
+ b.classList.toggle('clr',has);b.title=lbl;b.setAttribute('aria-label',lbl)};
 function pasteGo(s){s=(s||'').trim();if(!s)return say('Clipboard is empty');
  if(!looksLink(s))return say('No video link found in clipboard',3500);
- $('#url').value=s;el.set.hidden=true;start();const n=snip(s);if(n)$('#url').value=n.url}
+ $('#url').value=s;syncPb();el.set.hidden=true;start();const n=snip(s);if(n){$('#url').value=n.url;syncPb()}}
 async function pasteBtn(){try{pasteGo(await navigator.clipboard.readText())}catch{$('#url').focus();say('Press Ctrl+V to paste the link',4000)}}
-$('#pb').onclick=$('#pb2').onclick=pasteBtn;
+$('#url').addEventListener('input',syncPb);$('#url').addEventListener('change',syncPb);
+$('#pb').onclick=()=>{if($('#url').value.trim()){$('#url').value='';syncPb();$('#url').focus();return}pasteBtn()};
+$('#pb2').onclick=pasteBtn;
+syncPb();
 document.addEventListener('paste',e=>{
  const f=e.clipboardData&&e.clipboardData.files;if(f&&f.length){e.preventDefault();return openFiles(f)}
  const s=((e.clipboardData&&e.clipboardData.getData('text'))||'').trim();
@@ -861,5 +876,5 @@ function unweb(){
 $('#wt').onclick=()=>window.open(curUrl,'_blank','noopener');
 $('#wx').onclick=()=>{unweb();pvReset();freeBlob('');curUrl='';st.classList.remove('has','vert');el.empty.hidden=false};
 
-if(/[?&](u|url|link|src|video)=/.test(location.search)){$('#url').value=location.href;start()}
+if(/[?&](u|url|link|src|video)=/.test(location.search)){$('#url').value=location.href;syncPb();start()}
 </script></body></html>

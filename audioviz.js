@@ -75,14 +75,14 @@ function init(){
  const st=document.getElementById('stage');if(!st)return;
  const RM=matchMedia('(prefers-reduced-motion:reduce)');
  document.head.insertAdjacentHTML('beforeend','<style>'+[
-  '#aviz{position:absolute;inset:0;z-index:0;display:grid;place-items:center;overflow:hidden;pointer-events:none;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--ac) 32%,transparent),transparent 64%),linear-gradient(180deg,#10131f,#07080d);transition:padding .2s}',
+  '#aviz{position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;box-sizing:border-box;overflow:hidden;pointer-events:none;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--ac) 32%,transparent),transparent 64%),linear-gradient(180deg,#10131f,#07080d);transition:padding .2s}',
   '#aviz[hidden]{display:none}#stage:not(.idle) #aviz{padding-bottom:var(--cb,74px)}',
-  '#aviz .in{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*2);width:100%}',
-  '#aviz .disc{width:calc(var(--u)*44);height:calc(var(--u)*44);filter:drop-shadow(0 calc(var(--u)*1.5) calc(var(--u)*3) #000b);animation:avspin 9s linear infinite;animation-play-state:paused}',
+  '#aviz .in{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--u)*2);width:100%;max-width:100%;min-width:0;padding:0 12px;box-sizing:border-box}',
+  '#aviz .disc{flex:none;width:calc(var(--u)*44);height:calc(var(--u)*44);filter:drop-shadow(0 calc(var(--u)*1.5) calc(var(--u)*3) #000b);animation:avspin 9s linear infinite;animation-play-state:paused}',
   '#aviz.pl .disc{animation-play-state:running}@keyframes avspin{to{transform:rotate(360deg)}}',
-  '#aviz .t{text-align:center;max-width:82%;color:#fff}#aviz .t b{display:block;font-size:calc(var(--u)*4);font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-  '#aviz .t small{display:block;font-size:calc(var(--u)*3);opacity:.68;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-  '#aviz .eq{width:calc(var(--u)*80);max-width:80%;height:calc(var(--u)*8)}#aviz .eq rect{fill:var(--ac)}',
+  '#aviz .t{width:100%;max-width:86%;min-width:0;text-align:center;color:#fff;overflow:hidden}#aviz .t b{display:block;max-width:100%;font-size:clamp(11px,calc(var(--u)*4),24px);font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+  '#aviz .t small{display:block;max-width:100%;font-size:clamp(10px,calc(var(--u)*3),16px);opacity:.68;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+  '#aviz .eq{flex:none;width:calc(var(--u)*80);max-width:80%;height:calc(var(--u)*8)}#aviz .eq rect{fill:var(--ac)}',
   '@media(prefers-reduced-motion:reduce){#aviz .disc{animation:none}}'].join('')+'</style>');
  let bars='';for(let i=0;i<N;i++)bars+='<rect x="'+(i*10+1)+'" y="60" width="7" height="4" rx="3.5"/>';
  const box=document.createElement('div');box.id='aviz';box.hidden=true;
