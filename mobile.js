@@ -7,7 +7,7 @@
 6. thin progress line while the controls are hidden (setting)
 7. auto title for direct links + rotate, audio & subtitle icons below the top title on mobile (XPlayer / PLAYit style) */
 (()=>{
-const SKIP='#ctl,#bp,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb,#qb,#gear,#qs,#pl,#axlockb,#axlockov,#axunl,#axtr';
+const SKIP='#ctl,#bp,#set,#qm,#empty,#stats,#err,#wb,#eg,#aud,#aub,#ccb,#qb,#gear,#qs,#pl,#axlockb,#axlockov,#axunl,#axtr,#axapp-back';
 const CSS=`
 #stage *{-webkit-tap-highlight-color:transparent}
 #msg.axq{opacity:0!important;transition:none!important}
@@ -42,9 +42,11 @@ const CSS=`
 #axlockb{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right));z-index:3;width:40px;height:40px;padding:0;border-radius:50%;background:rgba(14,17,27,.62);color:#fff;display:none;place-items:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .12s}
 #axlockb:active{transform:scale(.9)}
 #axlockb svg{width:20px;height:20px}
-#axtr{position:absolute;top:calc(44px + env(safe-area-inset-top,0px));left:max(14px,env(safe-area-inset-left));z-index:3;display:none;align-items:center;gap:8px;opacity:0;pointer-events:none;transition:opacity .25s}
+#axtr{position:absolute;top:calc(48px + env(safe-area-inset-top,0px));left:max(14px,env(safe-area-inset-left));z-index:3;display:none;align-items:center;gap:8px;opacity:0;pointer-events:none;transition:opacity .25s}
 #axtr[hidden],#axtr button[hidden]{display:none!important}
 #stage.axnottl #axtr{top:calc(10px + env(safe-area-inset-top,0px))}
+body.ax-app #axtr{top:calc(62px + env(safe-area-inset-top,0px))}
+body.ax-app #stage.axnottl #axtr{top:calc(13px + env(safe-area-inset-top,0px));left:max(62px,calc(54px + env(safe-area-inset-left,0px)))}
 #axtr button{width:36px;height:36px;min-height:0;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(14,17,27,.64);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#fff;display:grid;place-items:center;transition:transform .12s,background-color .15s}
 #axtr button:active{transform:scale(.9);background:rgba(14,17,27,.86)}
 #axtr svg{width:18px;height:18px;display:block}
@@ -70,9 +72,31 @@ const CSS=`
  #bar::before{content:"";position:absolute;left:0;right:0;top:-16px;bottom:-4px}
  #stage.has.idle:not(.web):not(.failed):not(.axmini-off) #axmini,#stage.has.axlocked:not(.web):not(.failed):not(.axmini-off) #axmini{opacity:1}
 }
+/* keep 9:16 portrait videos & bottom control bar (including Fullscreen button) cleanly inside narrow mobile screens */
+@media(pointer:coarse) and (max-width:640px){
+ #stage.vert{width:100%!important;max-width:100%!important}
+ #ctl{left:0;right:0;width:100%;max-width:100%;box-sizing:border-box;padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
+ #ctl .row{gap:2px;max-width:100%;min-width:0;flex-wrap:nowrap}
+ #ctl .row>*{min-width:0}
+ #ctl .row button{flex:0 0 auto;min-width:34px;width:34px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+ #ctl .row button[hidden]{display:none!important}
+ #ctl .row button#qb,#ctl .row button#spb{width:auto;min-width:0;padding:0 7px;font-size:12px}
+ #ctl .row .sp{flex:1 1 0;min-width:2px}
+ #ctl .row .tm,#ctl .row #tm{font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;padding:0 2px}
+ #ctl .row input[type=range]{display:none!important}
+}
+@media(pointer:coarse) and (max-width:390px){
+ #ctl .row{gap:1px}
+ #ctl .row button{min-width:30px;width:30px;height:34px}
+ #ctl .row button svg{width:18px;height:18px}
+ #ctl .row button#qb,#ctl .row button#spb{width:auto;padding:0 6px;font-size:11px}
+ #ctl .row .tm,#ctl .row #tm{font-size:10.5px}
+}
 @media(pointer:coarse) and (max-height:500px) and (orientation:landscape){
- #axtr{top:calc(40px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left))}
+ #axtr{top:calc(42px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left))}
  #stage.axnottl #axtr{top:calc(10px + env(safe-area-inset-top,0px))}
+ body.ax-app #axtr{top:calc(54px + env(safe-area-inset-top,0px))}
+ body.ax-app #stage.axnottl #axtr{top:calc(10px + env(safe-area-inset-top,0px));left:max(56px,calc(48px + env(safe-area-inset-left,0px)))}
 }
 /* not needed in full screen */
 #stage:fullscreen #axmini{opacity:0!important}
