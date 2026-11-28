@@ -1,4 +1,4 @@
-/* Axion library.js v6.5: Classic v5 untouched + polished 16:9 desktop folder cards & hover play button */
+/* Axion library.js v6.7: Classic v5 untouched + clean hover padding & spacing in App Mode */
 (()=>{
 const VID=/\.(mp4|m4v|mkv|webm|mov|avi|wmv|flv|f4v|ts|m2ts|mts|3gp|3g2|mpg|mpeg|mpe|vob|ogv|ogm|asf|divx|xvid|rm|rmvb|mxf|wtv|mp2v|mpv|m2v|dv|y4m|h264|h265|hevc)$/i,
  AUD=/\.(mp3|m4a|m4b|aac|flac|wav|wave|ogg|oga|opus|wma|mka|weba|aiff|aif|aifc|alac|amr|ape|ac3|eac3|ec3|dts|caf|mp2|mp1|mpa|wv|mpc|spx|tta|dsf|dff|ra|ram|au|snd|mid|midi)$/i,
@@ -38,7 +38,7 @@ const P={
  MASK=p=>'url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>')+'")';
 
 const DESK_MQ=matchMedia('(min-width:740px),(pointer:coarse) and (max-height:500px) and (orientation:landscape)');
-let L={name:'',root:'',items:[],subs:{},skip:0},view=[],all=[],more=300,hist={},scanId=0,lastP=0,pickClose=0;
+let L={name:'',root:'',items:[],subs:{},skip:0},view=[],all=[],more=300,hist={},scanId=0,lastP=0,pickClose=0,curH=null,autoTried=0;
 const F={q:'',f:'all',s:'name',m:'flat',p:''},AF={tab:'folders',q:'',s:'name',p:''},keyOf=new WeakMap();
 let appMode='classic',appView='auto';
 try{F.m=localStorage.axlm==='tree'?'tree':'flat'}catch{}
@@ -140,10 +140,12 @@ function init(){
  '#axapp.emp .asr,#axapp.emp .act,#axapp.emp #axap-c,#axapp.emp #axap-sb{display:none}',
 
  /* Mobile list & cards */
- '#axapp-list{grid-column:1/-1;grid-row:5;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr);grid-auto-rows:max-content;gap:7px;align-content:start;padding:2px 2px 10px;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}',
+ '#axapp-list{grid-column:1/-1;grid-row:5;min-height:0;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr);grid-auto-rows:max-content;gap:7px;align-content:start;padding:6px 4px 16px;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line) transparent}',
  '#axapp-list::-webkit-scrollbar{width:6px}#axapp-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}',
- '#axapp-list>h6,#axapp-list>.lm,#axapp-list>.rf,#axapp-list>.ahub,#axapp-list>.afg{grid-column:1/-1}',
+ '#axapp-list>h6,#axapp-list>.ahdr,#axapp-list>.lm,#axapp-list>.rf,#axapp-list>.ahub,#axapp-list>.afg{grid-column:1/-1}',
  '#axapp-list h6{margin:6px 2px 2px;font-size:12px;font-weight:700;color:var(--mut);display:flex;gap:6px;align-items:center;white-space:nowrap;overflow:hidden}#axapp-list h6::before{content:"";width:3px;height:12px;border-radius:2px;background:var(--grad);flex:none}',
+ '#axapp-list .ahdr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:2px 2px 4px}#axapp-list .ahdr h6{margin:0}',
+ '#axapp-list .apick{display:inline-flex;align-items:center;gap:5px;height:30px;min-height:0;padding:0 11px;border-radius:9px;background:var(--btn);border:1px solid var(--line);color:var(--tx);font-size:12px;font-weight:600}#axapp-list .apick:hover{background:var(--btnh);border-color:color-mix(in srgb,var(--ac) 45%,var(--line))}#axapp-list .apick .i{width:14px;height:14px;color:var(--act)}',
  '#axapp-list .afg{display:grid;grid-template-columns:minmax(0,1fr);gap:7px}',
  '#axapp-list .li{position:relative;display:flex;gap:10px;align-items:center;width:100%;min-width:0;box-sizing:border-box;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 8px;transition:transform .16s cubic-bezier(.22,1,.36,1),border-color .16s,box-shadow .16s;content-visibility:auto;contain-intrinsic-size:auto 70px}',
  '#axapp-list .li:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--ac) 58%,var(--line));box-shadow:0 12px 26px -10px #0004}#axapp-list .li.cur{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 13%,var(--panel))}',
@@ -155,6 +157,7 @@ function init(){
  '#axapp-list .fo .th{width:46px;height:46px;border-radius:11px;background:linear-gradient(145deg,color-mix(in srgb,var(--ac) 30%,var(--inp)),color-mix(in srgb,var(--ac) 10%,var(--inp)));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ac) 24%,transparent);color:var(--act)}#axapp-list .fo .th .ic .i{width:24px;height:24px}',
  '#axapp-list .fo.au .th{background:linear-gradient(145deg,#8b5cf636,#38bdf818),var(--inp);box-shadow:inset 0 0 0 1px #8b5cf636;color:#7c3aed}',
  ':root[data-theme=dark] #axapp-list .fo.au .th,:root[data-theme=dark] #axapp-list .th.au{color:#a78bfa}',
+ '#axapp-list .fo.addf{border-style:dashed;background:color-mix(in srgb,var(--panel) 55%,transparent)}#axapp-list .fo.addf .th{background:color-mix(in srgb,var(--tx) 5%,transparent);box-shadow:none;color:var(--mut)}#axapp-list .fo.addf:hover{background:var(--panel);border-color:var(--ac)}#axapp-list .fo.addf:hover .th{color:var(--act);background:color-mix(in srgb,var(--ac) 14%,transparent)}',
  '#axapp-list .fo .fbg{display:none;position:absolute;left:8px;bottom:8px;padding:3px 8px;border-radius:99px;background:color-mix(in srgb,var(--panel) 84%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid var(--line);color:var(--tx);font-size:11px;font-weight:700;line-height:1.2;font-style:normal}',
  '#axapp-list .fo .fpl{display:none;position:absolute;right:10px;bottom:10px;z-index:2;width:38px;height:38px;border-radius:50%;place-items:center;background:var(--grad);color:#171000;border:2px solid color-mix(in srgb,var(--panel) 88%,transparent);box-shadow:0 8px 20px -4px color-mix(in srgb,var(--ac) 75%,transparent);opacity:0;transform:translateY(8px) scale(.86);transition:opacity .18s ease,transform .22s cubic-bezier(.22,1,.36,1),box-shadow .18s ease}',
  '#axapp-list .fo .fpl .i{width:15px!important;height:15px!important;margin-left:2px;transition:transform .16s ease}',
@@ -183,8 +186,8 @@ function init(){
  '#axapp-list.v-grid .li.fo.sv{padding-right:6px}#axapp-list.v-grid .rmf{top:10px;right:10px;transform:none;background:#0a0d18aa;color:#fff}',
  '#axapp-list.v-grid .tx{padding:0 2px 2px}#axapp-list.v-grid .nm{font-size:12.5px}#axapp-list.v-grid .tx small{font-size:11px}',
 
- /* Compact permission / empty hub */
- '#axapp .ahub{max-width:460px;width:100%;margin:10px auto 6px;padding:18px 16px 16px;border-radius:18px;background:var(--panel);border:1px solid var(--line);box-shadow:0 14px 36px -16px #0007;text-align:center}',
+ /* Compact permission hub (only shown when user has 0 saved folders) */
+ '#axapp .ahub{max-width:460px;width:100%;margin:16px auto 6px;padding:18px 16px 16px;border-radius:18px;background:var(--panel);border:1px solid var(--line);box-shadow:0 14px 36px -16px #0007;text-align:center}',
  '#axapp .ahub .ao{width:50px;height:50px;margin:0 auto 10px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--ac) 18%,var(--inp));color:var(--act);border:1px solid color-mix(in srgb,var(--ac) 32%,transparent)}#axapp .ahub .ao .i{width:25px;height:25px}',
  '#axapp .ahub b{display:block;font-size:16px;font-weight:800;margin-bottom:4px}',
  '#axapp .ahub p{margin:0 0 14px;font-size:12.5px;line-height:1.45;color:var(--mut)}',
@@ -217,7 +220,7 @@ function init(){
   '#axapp .act{grid-column:2;grid-row:3;margin-bottom:8px;min-height:36px}'+
   '#axap-st,#axap-vw,#axap-sh,#axap-pl{height:36px;border-radius:10px}#axap-vw,#axap-sh{width:36px}#axap-pl{padding:0 15px;font-size:13px}'+
   '#axap-c{grid-column:1/-1;grid-row:4;margin-bottom:8px;font-size:12.5px}'+
-  '#axapp-list{grid-column:1/-1;grid-row:5}'+
+  '#axapp-list{grid-column:1/-1;grid-row:5;padding:8px 4px 18px}'+
   '#axapp-list:not(.v-list){grid-template-columns:repeat(auto-fill,minmax(212px,1fr));gap:12px}'+
   '#axapp-list:not(.v-list) .afg{grid-template-columns:repeat(auto-fill,minmax(224px,1fr));gap:12px;margin-bottom:4px}'+
   '#axapp-list:not(.v-list) .li{flex-direction:column;align-items:stretch;gap:8px;padding:8px;border-radius:15px;contain-intrinsic-size:auto 214px}'+
@@ -380,7 +383,7 @@ function init(){
 
  /* ---- fast media-only scanning (skips non-media before touching disk) ---- */
  function reset(n){
-  L={name:n,root:'',items:[],subs:{},skip:0};
+  L={name:n,root:'',items:[],subs:{},skip:0};curH=null;
   F.q='';F.p='';qInp.value='';srEl.classList.remove('open');sbBtn.classList.remove('on');setSortMenu(false);
   AF.q='';AF.p='';aQInp.value='';aSrEl.classList.remove('open');aSbBtn.classList.remove('on');setAppSortMenu(false)}
  function prog(force){
@@ -453,12 +456,25 @@ function init(){
   else{o.hidden=false;render(1)}}
  function done(){
   collapse();
+  if(curH){
+   const nv=L.items.filter(x=>!x.a).length,na=L.items.length-nv,sz=total(L.items);
+   tx('readwrite',s=>s.put({k:curH.name,h:curH,ts:Date.now(),nv,na,sz}))}
   say(L.items.length+' media file'+(L.items.length===1?'':'s')+' found'+(L.skip?' ('+L.skip+' non-media skipped)':''),3000);
   if(appMode==='app')openApp();else showLib()}
  async function fromHandle(h){
-  const id=++scanId;reset(h.name);L.scan=true;showScan();
+  const id=++scanId;reset(h.name);curH=h;L.scan=true;showScan();
   try{await walk(h,h.name+'/',id)}finally{if(id===scanId)L.scan=false}
   if(id===scanId)done()}
+ async function tryAutoOpen(){
+  if(autoTried||L.items.length||L.scan)return false;
+  autoTried=1;
+  const rc=((await tx('readonly',s=>s.getAll()))||[]).sort((a,b)=>b.ts-a.ts);
+  for(const d of rc){
+   if(d.h&&d.h.queryPermission){
+    try{
+     if((await d.h.queryPermission({mode:'read'}))==='granted'){fromHandle(d.h);return true}
+    }catch{}}}
+  return false}
  async function pick(){
   if(window.showDirectoryPicker){
    try{const h=await showDirectoryPicker({id:'axion',mode:'read'});tx('readwrite',s=>s.put({k:h.name,h,ts:Date.now()}));await fromHandle(h)}
@@ -483,7 +499,11 @@ function init(){
   if(id===scanId)done()};
  async function openRecent(k){
   const d=await tx('readonly',s=>s.get(k));if(!d)return;
-  try{if(d.h.requestPermission&&await d.h.requestPermission({mode:'read'})!=='granted')return say('Permission not granted',3000)}catch{}
+  try{
+   let p=d.h.queryPermission?await d.h.queryPermission({mode:'read'}):'prompt';
+   if(p!=='granted'&&d.h.requestPermission)p=await d.h.requestPermission({mode:'read'});
+   if(p!=='granted')return say('Permission not granted',3000)
+  }catch{}
   try{await fromHandle(d.h)}catch{say('Folder is no longer available',4000);tx('readwrite',s=>s.delete(k));appMode==='app'?renderApp(1):render(1)}}
 
  /* ---- lazy thumbnails (320x180, cached in memory + IndexedDB); paused while a video is playing on phones ---- */
@@ -586,16 +606,24 @@ function init(){
   $('#axap-bk').hidden=!canUp;
   $('#axap-lg').style.display=canUp?'none':'';
   if(!L.items.length){
-   const rc=((await tx('readonly',s=>s.getAll()))||[]).sort((a,b)=>b.ts-a.ts).slice(0,8);
-   $('#axap-t').textContent='Axion';$('#axap-i').textContent='Folder & media player';
+   const rc=((await tx('readonly',s=>s.getAll()))||[]).sort((a,b)=>b.ts-a.ts).slice(0,12);
+   $('#axap-t').textContent='Axion';$('#axap-i').textContent=rc.length?'Tap a folder to open':'Folder & media player';
    $('#axap-c').innerHTML='';
    if(L.scan){$('#axap-t').textContent=cleanName(L.name);$('#axap-i').textContent='Scanning…';aBody.innerHTML='<div class="lm"><div class="big spin">'+ic('folderOpen')+'</div><p>Scanning audio &amp; video…</p><p id="axsc">0 media found</p></div>';return}
+   if(rc.length){
+    aBody.innerHTML='<div class="ahdr"><h6>Your folders</h6><button type="button" class="apick" id="axap-pf">'+ic('film')+'<span>Pick videos</span></button></div><div class="afg">'+
+     rc.map(d=>{
+      const auOnly=d.na>0&&!d.nv,
+       pill=d.nv&&d.na?(d.nv+' vid · '+d.na+' aud'):d.nv?(d.nv+' video'+(d.nv>1?'s':'')):d.na?(d.na+' audio'):'Saved',
+       sub=(d.nv||d.na)?(pill+(d.sz?' · '+MB(d.sz):'')):'Tap to open';
+      return'<button class="li fo sv'+(auOnly?' au':'')+'" data-r="'+esc(d.k)+'"><span class="th"><span class="ic">'+ic(auOnly?'music':'folder')+'</span><em class="fbg">'+esc(pill)+'</em></span><span class="tx"><span class="nm">'+esc(cleanName(d.k))+'</span><small>'+esc(sub)+'</small></span><span class="rmf" data-rm="'+esc(d.k)+'" title="Remove">'+ic('x')+'</span></button>'}).join('')+
+     '<button type="button" class="li fo addf" id="axap-ch"><span class="th"><span class="ic">'+ic('folderOpen')+'</span></span><span class="tx"><span class="nm">Add folder</span><small>Browse another folder</small></span></button></div>';
+    return}
    const canDir=!!window.showDirectoryPicker;
    aBody.innerHTML='<div class="ahub"><div class="ao">'+ic('shield')+'</div><b>Folder &amp; media access</b>'+
     '<p>'+(canDir?'Allow read-only access to browse your folders, videos and audio like a native app. Everything stays on your device.':'Choose a folder or pick videos from your device to browse and play.')+'</p>'+
     '<div class="ab"><button type="button" class="go" id="axap-ch">'+ic('folderOpen')+'<span>'+(canDir?'Allow folder access':'Choose folder')+'</span></button>'+
-    '<button type="button" class="ab2" id="axap-pf">'+ic('film')+'<span>Pick videos</span></button></div></div>'+
-    (rc.length?'<h6>Saved folders</h6><div class="afg">'+rc.map(d=>'<button class="li fo sv" data-r="'+esc(d.k)+'"><span class="th"><span class="ic">'+ic('folder')+'</span><em class="fbg">Saved</em></span><span class="tx"><span class="nm">'+esc(cleanName(d.k))+'</span><small>Tap to allow &amp; open</small></span><span class="rmf" data-rm="'+esc(d.k)+'" title="Remove">'+ic('x')+'</span></button>').join('')+'</div>':'');
+    '<button type="button" class="ab2" id="axap-pf">'+ic('film')+'<span>Pick videos</span></button></div></div>';
    return}
   const q=AF.q.toLowerCase(),tree=AF.tab==='folders'&&!q,P=AF.p,
    ok=x=>(AF.tab==='folders'||(AF.tab==='audio')===x.a)&&(!q||x.f.name.toLowerCase().includes(q)),
@@ -654,14 +682,17 @@ function init(){
   if(it&&F.m==='tree')F.p=it.dir;
   o.hidden=false;
   loadHist().then(()=>render(1)).then(()=>{const g=body.querySelector('.li.cur');g&&g.scrollIntoView({block:'center'})})}
- function openApp(){
+ async function openApp(){
   const c=pl[pi];
   if(pl.length&&!L.items.some(x=>x.f===c)){reset('Device files');pl.forEach(f=>add(f,''))}
   const it=L.items.find(x=>x.f===c);
   if(it&&AF.tab==='folders')AF.p=it.dir;
   else if(!AF.p&&L.root)AF.p=L.root;
   o.hidden=true;axApp.hidden=false;syncAppState();syncNP();
-  loadHist().then(()=>renderApp(1)).then(()=>{const g=aBody.querySelector('.li.cur');g&&g.scrollIntoView({block:'center'})})}
+  if(!L.items.length&&!L.scan&&await tryAutoOpen())return;
+  await loadHist();
+  await renderApp(1);
+  const g=aBody.querySelector('.li.cur');g&&g.scrollIntoView({block:'center'})}
  function close(){if(L.scan){scanId++;L.scan=false}setSortMenu(false);o.hidden=true;Q.length=0}
  function backToApp(){
   if(document.fullscreenElement)document.exitFullscreen?.().catch(()=>{});
