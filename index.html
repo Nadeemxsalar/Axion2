@@ -601,6 +601,7 @@ addEventListener('keydown',e=>{
   return}
  const f={k:tog,ArrowRight:()=>seekBy(5),ArrowLeft:()=>seekBy(-5),l:()=>seekBy(+S.step),j:()=>seekBy(-S.step),a:cycAud,
   Escape:()=>{el.set.hidden=true;el.qm.hidden=true},'+':()=>zoomTo(Z*1.25),'=':()=>zoomTo(Z*1.25),'-':()=>zoomTo(Z/1.25),'0':()=>zoomTo(1),
+  '1':()=>zoomTo((Math.round(Z*100)-5)/100),'3':()=>zoomTo((Math.round(Z*100)+5)/100),
   ',':()=>{v.pause();v.currentTime-=1/30},'.':()=>{v.pause();v.currentTime+=1/30},n:()=>pl.length>1&&playIdx(pi+1),b:()=>pl.length>1&&playIdx(pi-1),
   ArrowUp:()=>vol(.05),ArrowDown:()=>vol(-.05),m:()=>v.muted=!v.muted,f:fs,p:pip,'>':()=>spd(1),'<':()=>spd(-1)}[e.key];
  if(f){e.preventDefault();f()}});
